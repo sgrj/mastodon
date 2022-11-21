@@ -48,6 +48,7 @@ import {
   Mutes,
   PinnedStatuses,
   Lists,
+  ActivityLog,
   Directory,
   Explore,
   FollowRecommendations,
@@ -218,6 +219,7 @@ class SwitchingColumnsArea extends React.PureComponent {
           <WrappedRoute path='/domain_blocks' component={DomainBlocks} content={children} />
           <WrappedRoute path='/mutes' component={Mutes} content={children} />
           <WrappedRoute path='/lists' component={Lists} content={children} />
+          <WrappedRoute path='/activity_log' component={ActivityLog} content={children} />
 
           <Route component={BundleColumnError} />
         </WrappedSwitch>

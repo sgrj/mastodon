@@ -9,6 +9,7 @@ const messages = defineMessages({
   pins: { id: 'navigation_bar.pins', defaultMessage: 'Pinned posts' },
   preferences: { id: 'navigation_bar.preferences', defaultMessage: 'Preferences' },
   follow_requests: { id: 'navigation_bar.follow_requests', defaultMessage: 'Follow requests' },
+  activity_log: { id: 'navigation_bar.activity_log', defaultMessage: 'Activity log' },
   favourites: { id: 'navigation_bar.favourites', defaultMessage: 'Favourites' },
   lists: { id: 'navigation_bar.lists', defaultMessage: 'Lists' },
   blocks: { id: 'navigation_bar.blocks', defaultMessage: 'Blocked users' },
@@ -45,6 +46,7 @@ class ActionBar extends React.PureComponent {
     menu.push({ text: intl.formatMessage(messages.favourites), to: '/favourites' });
     menu.push({ text: intl.formatMessage(messages.bookmarks), to: '/bookmarks' });
     menu.push({ text: intl.formatMessage(messages.lists), to: '/lists' });
+    menu.push({ text: intl.formatMessage(messages.activity_log), to: '/activity_log' });
     menu.push(null);
     menu.push({ text: intl.formatMessage(messages.mutes), to: '/mutes' });
     menu.push({ text: intl.formatMessage(messages.blocks), to: '/blocks' });
