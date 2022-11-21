@@ -25,6 +25,8 @@ class ActivityPub::DeliveryWorker
   def perform(json, source_account_id, inbox_url, options = {})
     return unless DeliveryFailureTracker.available?(inbox_url)
 
+    Rails.logger.error "=====PUSH===== #{json}"
+
     @options        = options.with_indifferent_access
     @json           = json
     @source_account = Account.find(source_account_id)
