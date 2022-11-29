@@ -30,8 +30,25 @@ class Lists extends ImmutablePureComponent {
     multiColumn: PropTypes.bool,
   };
 
+  state = {
+    logs: [],
+  };
+
+  componentDidMount() {
+    this.eventSource = new EventSource('/api/v1/activity_log');
+    this.eventSource.onmessage = (event) => {
+      this.setState({ logs: [...this.state.logs, JSON.parse(event.data)] });
+    };
+  }
+
+  componentWillUnmount() {
+    if (this.eventSource) {
+      this.eventSource.close();
+    }
+  }
+
   render () {
-    return <div>Hello world</div>;
+    return <div>{this.state.logs.map(x => (<div>{JSON.stringify(x)}</div>))}</div>;
   }
 
 }

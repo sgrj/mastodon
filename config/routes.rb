@@ -514,6 +514,8 @@ Rails.application.routes.draw do
         resources :confirmations, only: [:create]
       end
 
+      resource :activity_log, only: [:show], controller: 'activity_log'
+
       resource :instance, only: [:show] do
         resources :peers, only: [:index], controller: 'instances/peers'
         resources :rules, only: [:index], controller: 'instances/rules'
