@@ -48,7 +48,7 @@ class Lists extends ImmutablePureComponent {
   }
 
   render () {
-    return <div>{this.state.logs.map(x => (<div>{JSON.stringify(x)}</div>))}</div>;
+    return <div>{this.state.logs.filter(x => x.type !== 'keep-alive').map(x => (<pre>{JSON.stringify(x, null, 2)}</pre>))}</div>;
   }
 
 }

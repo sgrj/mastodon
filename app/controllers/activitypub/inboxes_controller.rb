@@ -1,4 +1,5 @@
 # frozen_string_literal: true
+require 'redis'
 
 class ActivityPub::InboxesController < ActivityPub::BaseController
   include SignatureVerification
@@ -71,6 +72,13 @@ class ActivityPub::InboxesController < ActivityPub::BaseController
   end
 
   def process_payload
+    event = ActivityLogEvent.new
+    event.type = 'inbound'
+    event.path = request.path
+    event.data = Oj.load(body, mode: :strict)
+
+    Redis.new.publish('activity_log', Oj.dump(event))
+
     ActivityPub::ProcessingWorker.perform_async(signed_request_actor.id, body, @account&.id, signed_request_actor.class.name)
   end
 end
