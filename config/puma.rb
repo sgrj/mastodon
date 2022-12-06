@@ -1,3 +1,5 @@
+require_relative '../lib/activity_subscriber'
+
 persistent_timeout ENV.fetch('PERSISTENT_TIMEOUT') { 20 }.to_i
 
 threads_count = ENV.fetch('MAX_THREADS') { 5 }.to_i
@@ -18,6 +20,10 @@ on_worker_boot do
   ActiveSupport.on_load(:active_record) do
     ActiveRecord::Base.establish_connection
   end
+
+  Thread.new {
+    ActivitySubscriber.new.start
+  }
 end
 
 plugin :tmp_restart

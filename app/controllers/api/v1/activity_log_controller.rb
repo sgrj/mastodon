@@ -3,17 +3,8 @@
 class Api::V1::ActivityLogController < Api::BaseController
   include ActionController::Live
 
-  # before_action -> { doorkeeper_authorize! :read, :'read:lists' }, only: [:index, :show]
-  # before_action -> { doorkeeper_authorize! :write, :'write:lists' }, except: [:index, :show]
-
-  # before_action :require_user!
-  # before_action :set_list, except: [:index, :create]
-  #
-  #
-  #
-  class Foo
-    attr_accessor :test
-  end
+  # before_action -> { doorkeeper_authorize! :read }, only: [:show]
+  before_action :require_user!
 
   rescue_from ArgumentError do |e|
     render json: { error: e.to_s }, status: 422
@@ -30,14 +21,21 @@ class Api::V1::ActivityLogController < Api::BaseController
 
     sse = SSE.new(response.stream)
 
+    # id = current_account.local_username_and_domain
+    id = current_account.username
+
     begin
-      100.times {
-        f = Foo.new
-        f.test = "xxx"
-        sse.write f.to_json
-        sleep 1
-      }
+      ActivityLogger.register(id, sse)
+
+      while true
+        event = ActivityLogEvent.new
+        event.type = "keep-alive"
+        ActivityLogger.log(id, event)
+        sleep 10
+      end
     ensure
+      ActivityLogger.unregister(id)
+      Rails.logger.error "closed log"
       sse.close
     end
   end

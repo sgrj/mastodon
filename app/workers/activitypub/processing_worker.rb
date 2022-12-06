@@ -6,9 +6,6 @@ class ActivityPub::ProcessingWorker
   sidekiq_options queue: 'ingress', backtrace: true, retry: 8
 
   def perform(actor_id, body, delivered_to_account_id = nil, actor_type = 'Account')
-
-    Rails.logger.error "=====INGRESS===== #{body}"
-
     case actor_type
     when 'Account'
       actor = Account.find_by(id: actor_id)
