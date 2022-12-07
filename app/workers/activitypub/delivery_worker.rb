@@ -26,8 +26,6 @@ class ActivityPub::DeliveryWorker
 
     @activity_log_publisher.publish(event)
 
-    Rails.logger.error "=====PUSH===== #{json}"
-
     @options        = options.with_indifferent_access
     @json           = json
     @source_account = Account.find(source_account_id)
