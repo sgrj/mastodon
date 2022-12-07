@@ -12,8 +12,19 @@ class ActivityPub::DeliveryWorker
 
   HEADERS = { 'Content-Type' => 'application/activity+json' }.freeze
 
+  def initialize
+    @activity_log_publisher = ActivityLogPublisher.new
+  end
+
   def perform(json, source_account_id, inbox_url, options = {})
     return unless DeliveryFailureTracker.available?(inbox_url)
+
+    event = ActivityLogEvent.new
+    event.type = 'outbound'
+    event.path = inbox_url
+    event.data = Oj.load(json, mode: :strict)
+
+    @activity_log_publisher.publish(event)
 
     Rails.logger.error "=====PUSH===== #{json}"
 

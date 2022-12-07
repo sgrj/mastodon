@@ -1,7 +1,7 @@
 # frozen_string_literal: true
 require 'redis'
 
-class ActivitySubscriber
+class ActivityLogSubscriber
   def start
     redis = Redis.new
 

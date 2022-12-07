@@ -10,6 +10,10 @@ class ActivityPub::InboxesController < ActivityPub::BaseController
   before_action :require_actor_signature!
   skip_before_action :authenticate_user!
 
+  def initialize
+    @activity_log_publisher = ActivityLogPublisher.new
+  end
+
   def create
     upgrade_account
     process_collection_synchronization
@@ -77,7 +81,7 @@ class ActivityPub::InboxesController < ActivityPub::BaseController
     event.path = request.path
     event.data = Oj.load(body, mode: :strict)
 
-    Redis.new.publish('activity_log', Oj.dump(event))
+    @activity_log_publisher.publish(event)
 
     ActivityPub::ProcessingWorker.perform_async(signed_request_actor.id, body, @account&.id, signed_request_actor.class.name)
   end

@@ -1,4 +1,4 @@
-require_relative '../lib/activity_subscriber'
+require_relative '../lib/activity_log_subscriber'
 
 persistent_timeout ENV.fetch('PERSISTENT_TIMEOUT') { 20 }.to_i
 
@@ -22,7 +22,7 @@ on_worker_boot do
   end
 
   Thread.new {
-    ActivitySubscriber.new.start
+    ActivityLogSubscriber.new.start
   }
 end
 
