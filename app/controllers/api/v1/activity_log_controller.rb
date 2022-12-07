@@ -35,7 +35,6 @@ class Api::V1::ActivityLogController < Api::BaseController
       end
     ensure
       ActivityLogger.unregister(id)
-      Rails.logger.error "closed log"
       sse.close
     end
   end
