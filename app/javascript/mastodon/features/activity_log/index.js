@@ -33,6 +33,7 @@ class Lists extends ImmutablePureComponent {
   state = {
     logs: [
       {
+        "timestamp":"2022-12-08T17:12:38Z",
         "type": "inbound",
         "path": "/users/admin/inbox",
         "data": {
@@ -49,6 +50,7 @@ class Lists extends ImmutablePureComponent {
         }
       },
       {
+        "timestamp":"2022-12-08T17:12:38Z",
         "type": "inbound",
         "path": "/users/admin/inbox",
         "data": {
@@ -60,6 +62,7 @@ class Lists extends ImmutablePureComponent {
         }
       },
       {
+        "timestamp":"2022-12-08T17:12:38Z",
         "type": "outbound",
         "path": "https://techhub.social/users/crepels/inbox",
         "data": {
@@ -76,6 +79,7 @@ class Lists extends ImmutablePureComponent {
         }
       },
       {
+        "timestamp":"2022-12-08T17:12:38Z",
         "type": "inbound",
         "path": "/inbox",
         "data": {
@@ -141,6 +145,7 @@ class Lists extends ImmutablePureComponent {
         }
       },
       {
+        "timestamp":"2022-12-08T17:12:38Z",
         "type": "inbound",
         "path": "/users/admin/inbox",
         "data": {
@@ -152,6 +157,7 @@ class Lists extends ImmutablePureComponent {
         }
       },
       {
+        "timestamp":"2022-12-08T17:12:38Z",
         "type": "inbound",
         "path": "/users/admin/inbox",
         "data": {
@@ -169,6 +175,7 @@ class Lists extends ImmutablePureComponent {
       }
     ],
   };
+
 
   componentDidMount() {
     this.eventSource = new EventSource('/api/v1/activity_log');
@@ -213,12 +220,17 @@ function Type({ activity }) {
     case 'Follow':
       return (<>
         <div className='type'>Follow</div>
-        <div className='object'>{userName(activity.object)}</div>
+        <div className='object'>{activity.object}</div>
       </>);
     case 'Like':
       return (<>
         <div className='type'>Like</div>
         <div className='object'>{activity.object}</div>
+      </>);
+    case 'Note':
+      return (<>
+        <div className='type'>Note</div>
+        <div className='object'>{activity.content}</div>
       </>);
     default:
       return <div className='type'>{activity.type}</div>;
@@ -244,7 +256,7 @@ function Foo({ event }) {
   return (<div className={`log-event ${event.type}`}>
     <Activity activity={event.data} />
     <div className='metadata'>
-      <div className='time'>17:23</div>
+      <div className='time'>{new Date(event.timestamp).toLocaleTimeString()}</div>
       <div className='path'>Sent to {event.path}</div>
       <button className='source-button' onClick={() => setShowSource(!showSource)}>
         {showSource ? 'hide' : 'show'} source
