@@ -1,10 +1,12 @@
 import PropTypes from 'prop-types';
-import React, { useState } from 'react';
+import React from 'react';
 import ImmutablePropTypes from 'react-immutable-proptypes';
 import ImmutablePureComponent from 'react-immutable-pure-component';
 import { injectIntl } from 'react-intl';
 import { connect } from 'react-redux';
 import { createSelector } from 'reselect';
+
+import ActivityPubVisualization from 'activity-pub-visualization';
 
 const getOrderedLists = createSelector([state => state.get('lists')], lists => {
   if (!lists) {
@@ -191,77 +193,7 @@ class Lists extends ImmutablePureComponent {
   }
 
   render () {
-    // return <div>{this.state.logs.filter(x => x.type !== 'keep-alive').map(x => (<pre>{JSON.stringify(x, null, 2)}</pre>))}</div>;
-    return (<div className='activity-log'>
-      {
-        this.state.logs
-          .filter(x => x.type !== 'keep-alive')
-          .map(x => (<Foo event={x} />))
-      }
-    </div>);
+    return <ActivityPubVisualization logs={this.state.logs} />;
   }
 
-}
-
-const userRegex = /^https:\/\/([^\/]+)\/users\/([^\/]+)$/;
-
-function userName(uri) {
-  const match = uri.match(userRegex);
-
-  if (match !== null) {
-    return `${match[2]}@${match[1]}`;
-  } else {
-    return uri;
-  }
-}
-
-function Type({ activity }) {
-  switch (activity.type) {
-    case 'Follow':
-      return (<>
-        <div className='type'>Follow</div>
-        <div className='object'>{activity.object}</div>
-      </>);
-    case 'Like':
-      return (<>
-        <div className='type'>Like</div>
-        <div className='object'>{activity.object}</div>
-      </>);
-    case 'Note':
-      return (<>
-        <div className='type'>Note</div>
-        <div className='object'>{activity.content}</div>
-      </>);
-    default:
-      return <div className='type'>{activity.type}</div>;
-  }
-}
-
-function Activity({ activity }) {
-  if (!activity.type) {
-    return null;
-  }
-
-  return (<div className='activity'>
-    {activity.actor && <div className='actor'>From {userName(activity.actor)}</div>}
-    <Type activity={activity}/>
-    {activity.object && <Activity activity={activity.object} />}
-  </div>);
-}
-
-function Foo({ event }) {
-
-  const [showSource, setShowSource] = useState(false);
-
-  return (<div className={`log-event ${event.type}`}>
-    <Activity activity={event.data} />
-    <div className='metadata'>
-      <div className='time'>{new Date(event.timestamp).toLocaleTimeString()}</div>
-      <div className='path'>Sent to {event.path}</div>
-      <button className='source-button' onClick={() => setShowSource(!showSource)}>
-        {showSource ? 'hide' : 'show'} source
-      </button>
-    </div>
-    {showSource && <pre className='source'>{JSON.stringify(event.data, null, 2)}</pre>}
-  </div>);
 }
