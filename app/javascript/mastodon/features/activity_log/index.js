@@ -193,7 +193,11 @@ class Lists extends ImmutablePureComponent {
   }
 
   render () {
-    return <ActivityPubVisualization logs={this.state.logs} />;
+    const darkMode = !(document.body && document.body.classList.contains('theme-mastodon-light'));
+
+    return (<div className={`${darkMode ? 'dark' : ''}`}>
+      <ActivityPubVisualization logs={this.state.logs} />
+    </div>);
   }
 
 }
