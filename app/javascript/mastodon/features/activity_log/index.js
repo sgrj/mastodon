@@ -1,4 +1,9 @@
 import React from 'react';
+import PropTypes from 'prop-types';
+import Column from 'mastodon/components/column';
+import ColumnHeader from 'mastodon/components/column_header';
+
+import ColumnSettings from './components/column_settings';
 
 import ActivityPubVisualization from 'activity-pub-visualization';
 
@@ -150,6 +155,10 @@ export default class ActivityLog extends React.PureComponent {
     ],
   };
 
+  static propTypes = {
+    multiColumn: PropTypes.bool,
+  };
+
 
   componentDidMount() {
     this.eventSource = new EventSource('/api/v1/activity_log');
@@ -164,11 +173,36 @@ export default class ActivityLog extends React.PureComponent {
     }
   }
 
+  handleHeaderClick = () => {
+    this.column.scrollTop();
+  }
+
+  clearLog = () => {
+    this.setState({ logs: [] });
+  }
+
   render () {
     const darkMode = !(document.body && document.body.classList.contains('theme-mastodon-light'));
 
-    return (<div className={`${darkMode ? 'dark' : ''}`}>
-      <ActivityPubVisualization logs={this.state.logs} />
-    </div>);
+    const { multiColumn } = this.props;
+
+    return (
+      <Column bindToDocument={!multiColumn} ref={this.setRef} label='Activity Log'>
+        <ColumnHeader
+          icon='comments'
+          title='Activity Log'
+          onClick={this.handleHeaderClick}
+          multiColumn={multiColumn}
+        >
+          <ColumnSettings clearLog={this.clearLog} />
+        </ColumnHeader>
+
+        <div className={`${darkMode ? 'dark' : ''}`}>
+          <ActivityPubVisualization logs={this.state.logs} />
+        </div>
+
+      </Column>
+    );
   }
+
 }
