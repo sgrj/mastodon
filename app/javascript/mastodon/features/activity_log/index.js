@@ -1,36 +1,8 @@
-import PropTypes from 'prop-types';
 import React from 'react';
-import ImmutablePropTypes from 'react-immutable-proptypes';
-import ImmutablePureComponent from 'react-immutable-pure-component';
-import { injectIntl } from 'react-intl';
-import { connect } from 'react-redux';
-import { createSelector } from 'reselect';
 
 import ActivityPubVisualization from 'activity-pub-visualization';
 
-const getOrderedLists = createSelector([state => state.get('lists')], lists => {
-  if (!lists) {
-    return lists;
-  }
-
-  return lists.toList().filter(item => !!item).sort((a, b) => a.get('title').localeCompare(b.get('title')));
-});
-
-const mapStateToProps = state => ({
-  lists: getOrderedLists(state),
-});
-
-export default @connect(mapStateToProps)
-@injectIntl
-class Lists extends ImmutablePureComponent {
-
-  static propTypes = {
-    params: PropTypes.object.isRequired,
-    dispatch: PropTypes.func.isRequired,
-    lists: ImmutablePropTypes.list,
-    intl: PropTypes.object.isRequired,
-    multiColumn: PropTypes.bool,
-  };
+export default class ActivityLog extends React.PureComponent {
 
   state = {
     logs: [
@@ -199,5 +171,4 @@ class Lists extends ImmutablePureComponent {
       <ActivityPubVisualization logs={this.state.logs} />
     </div>);
   }
-
 }
