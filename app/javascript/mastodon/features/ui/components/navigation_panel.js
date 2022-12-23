@@ -86,6 +86,8 @@ class NavigationPanel extends React.Component {
             <ColumnLink transparent to='/bookmarks' icon='bookmark' text={intl.formatMessage(messages.bookmarks)} />
             <ColumnLink transparent to='/lists' icon='list-ul' text={intl.formatMessage(messages.lists)} />
 
+            <ColumnLink transparent to='/activity_log' icon='comments' text='Activity Log' />
+
             <ListPanel />
 
             <hr />
