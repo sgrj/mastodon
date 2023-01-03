@@ -5,8 +5,6 @@ import ColumnHeader from 'mastodon/components/column_header';
 
 import dummy_data from './dummy-data.json';
 
-import ColumnSettings from './components/column_settings';
-
 import ActivityPubVisualization from 'activity-pub-visualization';
 
 export default function ActivityLog({ multiColumn }) {
@@ -45,9 +43,7 @@ export default function ActivityLog({ multiColumn }) {
         title='Activity Log'
         onClick={() => { columnElement.current.scrollTop() }}
         multiColumn={multiColumn}
-      >
-        <ColumnSettings clearLog={() => dispatch(['reset-logs'])} />
-      </ColumnHeader>
+      />
 
       <div className={`${darkMode ? 'dark' : ''}`}>
         <ActivityPubVisualization logs={logs} />
