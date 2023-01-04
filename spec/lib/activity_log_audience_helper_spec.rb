@@ -46,6 +46,13 @@ RSpec.describe ActivityLogAudienceHelper do
 
         expect(ActivityLogAudienceHelper.audience(inbound_event)).to eq ['bob']
       end
+
+      it 'returns direct audience from to, bto, cc, bcc if sent to public inbox' do
+        Rails.configuration.x.local_domain = 'example.com'
+        inbound_event = activity_log_event_fixture('inbound-with-multiple-recipients.json')
+
+        expect(ActivityLogAudienceHelper.audience(inbound_event)).to match_array(['first-to', 'second-to', 'single-bto', 'one-cc', 'one-bcc'])
+      end
     end
   end
 end
