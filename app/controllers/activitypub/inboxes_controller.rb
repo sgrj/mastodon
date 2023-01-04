@@ -76,10 +76,7 @@ class ActivityPub::InboxesController < ActivityPub::BaseController
   end
 
   def process_payload
-    event = ActivityLogEvent.new
-    event.type = 'inbound'
-    event.path = request.path
-    event.data = Oj.load(body, mode: :strict)
+    event = ActivityLogEvent.new('inbound', request.path, Oj.load(body, mode: :strict))
 
     @activity_log_publisher.publish(event)
 

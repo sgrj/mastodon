@@ -1,0 +1,12 @@
+{
+  "timestamp":"2022-12-08T17:12:38Z",
+  "type": "outbound",
+  "path": "https://other.org/users/bob/inbox",
+  "data": {
+    "@context": "https://www.w3.org/ns/activitystreams",
+    "id": "https://example.com/a5f25e0a-98d6-4e5c-baad-65318cd4d67d",
+    "type": "Follow",
+    "actor": "https://example.com/users/alice",
+    "object": "https://other.org/users/bob"
+  }
+}
