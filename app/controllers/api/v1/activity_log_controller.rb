@@ -28,7 +28,7 @@ class Api::V1::ActivityLogController < Api::BaseController
       ActivityLogger.register(id, sse)
 
       while true
-        event = ActivityLogEvent.new('keep-alive')
+        event = ActivityLogEvent.new('keep-alive', nil, nil)
         ActivityLogger.log(id, event)
         sleep 10
       end
