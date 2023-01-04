@@ -29,10 +29,7 @@ class ActivityPub::DeliveryWorker
   def perform(json, source_account_id, inbox_url, options = {})
     return unless DeliveryFailureTracker.available?(inbox_url)
 
-    event = ActivityLogEvent.new
-    event.type = 'outbound'
-    event.path = inbox_url
-    event.data = Oj.load(json, mode: :strict)
+    event = ActivityLogEvent.new('outbound', inbox_url, Oj.load(json, mode: :strict))
 
     @activity_log_publisher.publish(event)
 
