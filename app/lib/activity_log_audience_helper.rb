@@ -9,26 +9,24 @@ class ActivityLogAudienceHelper
       actor = activity_log_event.data['actor']
 
       if actor and match = actor.match(Regexp.new("https://#{domain}/users/([^/]*)"))
-        return [match.captures[0]]
+        [match.captures[0]]
       else
-        return []
+        []
       end
-    end
-
-    if activity_log_event.type == 'inbound'
+    elsif activity_log_event.type == 'inbound'
       if match = activity_log_event.path.match(Regexp.new("https://#{domain}/users/([^/]*)/inbox"))
-        return [match.captures[0]]
+        [match.captures[0]]
       elsif activity_log_event.path == "https://#{domain}/inbox"
-        return ['to', 'bto', 'cc', 'bcc']
+        ['to', 'bto', 'cc', 'bcc']
           .map { |target| actors(activity_log_event.data[target]) }
           .flatten
           .uniq
+      else
+        []
       end
-
-      return []
+    else
+      []
     end
-
-    return []
   end
 
   private

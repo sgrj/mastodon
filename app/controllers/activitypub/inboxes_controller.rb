@@ -76,7 +76,7 @@ class ActivityPub::InboxesController < ActivityPub::BaseController
   end
 
   def process_payload
-    event = ActivityLogEvent.new('inbound', request.path, Oj.load(body, mode: :strict))
+    event = ActivityLogEvent.new('inbound', "https://#{Rails.configuration.x.web_domain}#{request.path}", Oj.load(body, mode: :strict))
 
     @activity_log_publisher.publish(event)
 

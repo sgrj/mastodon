@@ -10,7 +10,8 @@ class ActivityLogSubscriber
         json = Oj.load(message, mode: :strict)
         event = ActivityLogEvent.new(json['type'], json['path'], json['data'])
 
-        ActivityLogger.log('admin', event)
+        ActivityLogAudienceHelper.audience(event)
+          .each { |username| ActivityLogger.log(username, event) }
       end
     end
   end
