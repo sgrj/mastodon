@@ -1,0 +1,25 @@
+{
+  "timestamp":"2022-12-08T17:12:38Z",
+  "type": "inbound",
+  "path": "https://example.com/inbox",
+  "data": {
+    "@context": "https://www.w3.org/ns/activitystreams",
+    "actor": "https://other.org/users/bob/",
+    "id": "https://other.org/users/bob/statuses/109473290785654613/activity",
+    "object": {
+      "attributedTo": "https://other.org/users/bob/",
+      "content": "A post to selected audiences",
+      "id": "https://other.org/users/bob/statuses/109473290785654613",
+      "to": [
+        "https://www.w3.org/ns/activitystreams#Public",
+        "https://other.org/users/bob/followers"
+      ],
+      "type": "Note"
+    },
+    "to": [
+      "https://www.w3.org/ns/activitystreams#Public",
+      "https://other.org/users/bob/followers"
+    ],
+    "type": "Create"
+  }
+}

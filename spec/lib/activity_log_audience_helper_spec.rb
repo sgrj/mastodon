@@ -59,6 +59,20 @@ RSpec.describe ActivityLogAudienceHelper do
           'one-bcc'
         ])
       end
+
+      it 'returns followers from to, bto, cc, bcc if sent to public inbox' do
+        Rails.configuration.x.web_domain = 'example.com'
+        inbound_event = activity_log_event_fixture('inbound-with-follower-recipients.json')
+
+        bob = Fabricate(:account, username: 'bob', followers_url: 'https://other.org/users/bob/followers')
+        Fabricate(:account, username: 'first_follower').follow!(bob)
+        Fabricate(:account, username: 'second_follower').follow!(bob)
+
+        expect(ActivityLogAudienceHelper.audience(inbound_event)).to match_array([
+          'first_follower',
+          'second_follower',
+        ])
+      end
     end
   end
 end

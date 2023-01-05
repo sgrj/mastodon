@@ -19,7 +19,9 @@ class ActivityLogAudienceHelper
       if match = activity_log_event.path.match(Regexp.new("https://#{domain}/users/([^/]*)/inbox"))
         return [match.captures[0]]
       elsif activity_log_event.path == "https://#{domain}/inbox"
-        return ['to', 'bto', 'cc', 'bcc'].map { |target| actors(activity_log_event.data[target]) }.flatten
+        return ['to', 'bto', 'cc', 'bcc']
+          .map { |target| actors(activity_log_event.data[target]) }
+          .flatten
       end
 
       return []
@@ -41,10 +43,17 @@ class ActivityLogAudienceHelper
       string_or_array.map do |string|
         if match = string.match(Regexp.new("https://#{domain}/users/([^/]*)"))
           match.captures[0]
+        elsif string.ends_with?("/followers")
+          Account
+            .joins(
+              "JOIN follows ON follows.account_id = accounts.id
+                JOIN accounts AS followed ON follows.target_account_id = followed.id
+                WHERE followed.followers_url = '#{string}'")
+            .map { |account| account.username }
         else
           nil
         end
-      end.compact
+      end.flatten.compact
     end
   end
 end
