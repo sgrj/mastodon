@@ -22,6 +22,7 @@ class ActivityLogAudienceHelper
         return ['to', 'bto', 'cc', 'bcc']
           .map { |target| actors(activity_log_event.data[target]) }
           .flatten
+          .uniq
       end
 
       return []
