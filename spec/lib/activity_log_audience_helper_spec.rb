@@ -73,6 +73,17 @@ RSpec.describe ActivityLogAudienceHelper do
           'second_follower',
         ])
       end
+
+      it 'removes duplicates from audience' do
+        Rails.configuration.x.web_domain = 'example.com'
+        inbound_event = activity_log_event_fixture('inbound-with-duplicate-recipients.json')
+
+        expect(ActivityLogAudienceHelper.audience(inbound_event)).to match_array([
+          'first-to',
+          'second-to'
+        ])
+      end
+
     end
   end
 end
