@@ -13,6 +13,6 @@ class ActivityLogEvent
     @type = type
     @path = path
     @data = data
-    @timestamp
+    @timestamp = timestamp
   end
 end
