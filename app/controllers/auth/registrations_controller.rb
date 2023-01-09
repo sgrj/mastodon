@@ -1,5 +1,8 @@
 # frozen_string_literal: true
 
+require 'random_name_generator'
+require 'securerandom'
+
 class Auth::RegistrationsController < Devise::RegistrationsController
   include RegistrationSpamConcern
 
@@ -45,6 +48,21 @@ class Auth::RegistrationsController < Devise::RegistrationsController
   end
 
   def build_resource(hash = nil)
+
+    # hack to always use auto-generated usernames and passwords
+    if !hash.nil?
+      username = generate_name
+      password = SecureRandom.hex
+
+      hash["account_attributes"] = {
+        "username": username.parameterize(separator: '_'),
+        "display_name": username
+      }
+      hash["email"] = "#{hash["account_attributes"]["username"]}@#{Rails.configuration.x.web_domain}"
+      hash["password"] = password
+      hash["password_confirmation"] = password
+    end
+
     super(hash)
 
     resource.locale                 = I18n.locale
@@ -62,7 +80,9 @@ class Auth::RegistrationsController < Devise::RegistrationsController
   end
 
   def after_sign_up_path_for(_resource)
-    auth_setup_path
+    # Hack to automatically visit the confirmation link after successful sign-up.
+    # This way we can use the default configuration but still get away without an email server.
+    "/auth/confirmation?confirmation_token=#{@user.confirmation_token}"
   end
 
   def after_sign_in_path_for(_resource)
@@ -155,5 +175,12 @@ class Auth::RegistrationsController < Devise::RegistrationsController
 
   def set_cache_headers
     response.headers['Cache-Control'] = 'no-cache, no-store, max-age=0, must-revalidate'
+  end
+
+  @@first_name_generator = RandomNameGenerator.new(File.new("#{File.dirname(__FILE__)}/roman.txt"))
+  @@last_name_generator = RandomNameGenerator.new(RandomNameGenerator::FANTASY)
+
+  def generate_name
+    "#{@@first_name_generator.compose(3)} #{@@last_name_generator.compose(2)}"
   end
 end
