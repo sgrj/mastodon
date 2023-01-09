@@ -18,21 +18,24 @@ export default function ActivityLog({ multiColumn }) {
     default:
       return state;
     }
-  }, dummy_data);
+  // }, dummy_data);
+  }, []);
 
   const columnElement = useRef(null);
 
   useEffect(() => {
     const eventSource = new EventSource('/api/v1/activity_log');
     eventSource.onmessage = (event) => {
-      dispatch(['add-log-event', JSON.parse(event.data)]);
+      const parsed = JSON.parse(event.data);
+      if (parsed.type !== 'keep-alive') {
+        dispatch(['add-log-event', parsed]);
+      }
     };
 
     return function() {
       eventSource.close();
     };
   }, []);
-
 
   const darkMode = !(document.body && document.body.classList.contains('theme-mastodon-light'));
 
@@ -44,6 +47,9 @@ export default function ActivityLog({ multiColumn }) {
         onClick={() => { columnElement.current.scrollTop() }}
         multiColumn={multiColumn}
       />
+
+      <button onClick={() => navigator.clipboard.writeText(JSON.stringify(logs, null, 2))}>Copy logs</button>
+      <button onClick={() => dispatch(['reset-logs'])}>Clear logs</button>
 
       <div className={`${darkMode ? 'dark' : ''}`}>
         <ActivityPubVisualization logs={logs} />
