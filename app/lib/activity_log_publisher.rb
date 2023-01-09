@@ -1,7 +1,7 @@
 class ActivityLogPublisher
 
   def initialize
-    @redis = Redis.new
+    @redis = RedisConfiguration.new.connection
   end
 
   def publish(log_event)

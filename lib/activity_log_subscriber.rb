@@ -3,7 +3,7 @@ require 'redis'
 
 class ActivityLogSubscriber
   def start
-    redis = Redis.new
+    redis = RedisConfiguration.new.connection
 
     redis.subscribe('activity_log') do |on|
       on.message do |channel, message|
