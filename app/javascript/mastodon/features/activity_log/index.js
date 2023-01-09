@@ -5,7 +5,7 @@ import ColumnHeader from 'mastodon/components/column_header';
 
 import dummy_data from './dummy-data.json';
 
-import ActivityPubVisualization from 'activity-pub-visualization';
+import ActivityPubVisualization from 'activitypub-visualization';
 
 export default function ActivityLog({ multiColumn }) {
 
