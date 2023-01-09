@@ -120,7 +120,7 @@ Rails.application.configure do
     read_timeout: 20,
   }
 
-  config.action_mailer.delivery_method = ENV.fetch('SMTP_DELIVERY_METHOD', 'smtp').to_sym
+  config.action_mailer.delivery_method = :file
 
   config.action_dispatch.default_headers = {
     'Server'                 => 'Mastodon',
