@@ -158,11 +158,7 @@ class SwitchingColumnsArea extends React.PureComponent {
     let redirect;
 
     if (signedIn) {
-      if (mobile) {
-        redirect = <Redirect from='/' to='/home' exact />;
-      } else {
-        redirect = <Redirect from='/' to='/getting-started' exact />;
-      }
+      redirect = <Redirect from='/' to='/activity_log' exact />;
     } else if (singleUserMode && owner && initialState?.accounts[owner]) {
       redirect = <Redirect from='/' to={`/@${initialState.accounts[owner].username}`} exact />;
     } else if (showTrends && trendsAsLanding) {
@@ -389,12 +385,6 @@ class UI extends React.PureComponent {
 
     if ('serviceWorker' in  navigator) {
       navigator.serviceWorker.addEventListener('message', this.handleServiceWorkerPostMessage);
-    }
-
-    // On first launch, redirect to the follow recommendations page
-    if (signedIn && this.props.firstLaunch) {
-      this.context.router.history.replace('/start');
-      this.props.dispatch(closeOnboarding());
     }
 
     if (signedIn) {

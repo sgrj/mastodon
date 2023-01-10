@@ -6,7 +6,9 @@ class HomeController < ApplicationController
   before_action :set_instance_presenter
 
   def index
-    expires_in 0, public: true unless user_signed_in?
+    if !user_signed_in?
+      redirect_to "/auth/sign_up"
+    end
   end
 
   private
