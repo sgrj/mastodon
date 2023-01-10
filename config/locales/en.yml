@@ -1013,6 +1013,7 @@ en:
       title: Sign in to %{domain}
     sign_up:
       preamble: With an account on this Mastodon server, you'll be able to follow any other person on the network, regardless of where their account is hosted.
+      activity_log_preamble: This instance is a learning resource for ActivityPub. After signing up, it will show all activities related to your account in real time. You can learn more about this in my blog post. Note that your account is only valid for 24 hours and will be deleted automatically afterwards.
       title: Let's get you set up on %{domain}.
     status:
       account_status: Account status
