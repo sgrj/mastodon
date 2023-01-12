@@ -2,19 +2,21 @@
 
 class ActivityLogger
 
-  @@loggers = Hash.new
+  @@loggers = Hash.new { |hash, key| hash[key] = [] }
 
   def self.register(id, sse)
-    @@loggers[id] = sse
+    @@loggers[id] << sse
   end
 
-  def self.unregister(id)
-    @@loggers.delete(id)
+  def self.unregister(id, sse)
+    @@loggers[id].delete(sse)
   end
 
   def self.log(id, event)
-    if @@loggers[id]
-      @@loggers[id].write event
-    end
+    @@loggers[id].each { |logger| logger.write event }
+  end
+
+  def self.reset
+    @@loggers.clear
   end
 end

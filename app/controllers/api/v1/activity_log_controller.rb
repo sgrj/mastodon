@@ -33,7 +33,7 @@ class Api::V1::ActivityLogController < Api::BaseController
         sleep 10
       end
     ensure
-      ActivityLogger.unregister(id)
+      ActivityLogger.unregister(id, sse)
       sse.close
     end
   end
