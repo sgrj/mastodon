@@ -159,6 +159,10 @@ class KeyboardShortcuts extends ImmutablePureComponent {
                 <td><FormattedMessage id='keyboard_shortcuts.requests' defaultMessage='to open follow requests list' /></td>
               </tr>
               <tr>
+                <td><kbd>g</kbd>+<kbd>a</kbd></td>
+                <td><FormattedMessage id='keyboard_shortcuts.activity_log' defaultMessage='to open activity log' /></td>
+              </tr>
+              <tr>
                 <td><kbd>?</kbd></td>
                 <td><FormattedMessage id='keyboard_shortcuts.legend' defaultMessage='to display this legend' /></td>
               </tr>
