@@ -107,6 +107,7 @@ const keyMap = {
   goToBlocked: 'g b',
   goToMuted: 'g m',
   goToRequests: 'g r',
+  goToActivityLog: 'g a',
   toggleHidden: 'x',
   toggleSensitive: 'h',
   openMedia: 'e',
@@ -489,6 +490,10 @@ class UI extends React.PureComponent {
     this.context.router.history.push('/home');
   };
 
+  handleHotkeyGoToActivityLog = () => {
+    this.context.router.history.push('/activity_log');
+  }
+
   handleHotkeyGoToNotifications = () => {
     this.context.router.history.push('/notifications');
   };
@@ -546,6 +551,7 @@ class UI extends React.PureComponent {
       focusColumn: this.handleHotkeyFocusColumn,
       back: this.handleHotkeyBack,
       goToHome: this.handleHotkeyGoToHome,
+      goToActivityLog: this.handleHotkeyGoToActivityLog,
       goToNotifications: this.handleHotkeyGoToNotifications,
       goToLocal: this.handleHotkeyGoToLocal,
       goToFederated: this.handleHotkeyGoToFederated,
