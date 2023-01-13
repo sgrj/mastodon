@@ -181,6 +181,11 @@ class Auth::RegistrationsController < Devise::RegistrationsController
   @@last_name_generator = RandomNameGenerator.new(RandomNameGenerator::FANTASY)
 
   def generate_name
-    "#{@@first_name_generator.compose(3)} #{@@last_name_generator.compose(2)}"
+    # When there is a name collision, the user will be shown
+    # "Something isn't quite right yet! Please review 2 errors below"
+    # When they sign up again, it will most probably succeed (since there is no collision anymore)
+    # While this isn't the best UX, it's only a minor issue
+    # (collisions happen after > 1k of users and there's an easy fix) # so not worth fixing for now
+    "#{@@first_name_generator.compose(3)} #{@@last_name_generator.compose(3)}"
   end
 end
