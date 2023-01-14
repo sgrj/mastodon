@@ -919,6 +919,17 @@ code {
       }
     }
   }
+
+  a {
+    color: $highlight-text-color;
+    text-decoration: underline;
+
+    &:hover,
+    &:active,
+    &:focus {
+      text-decoration: none;
+    }
+  }
 }
 
 .action-pagination {
