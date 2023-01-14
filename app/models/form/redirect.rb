@@ -12,14 +12,6 @@ class Form::Redirect
   validate :validate_target_account
 
   def valid_with_challenge?(current_user)
-    if current_user.encrypted_password.present?
-      errors.add(:current_password, :invalid) unless current_user.valid_password?(current_password)
-    else
-      errors.add(:current_username, :invalid) unless account.username == current_username
-    end
-
-    return false unless errors.empty?
-
     set_target_account
     valid?
   end
