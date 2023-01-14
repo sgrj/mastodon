@@ -13,7 +13,11 @@ class ActivityLogger
   end
 
   def self.log(id, event)
-    @@loggers[id].each { |logger| logger.write event }
+    @@loggers[id].each do |logger|
+      logger.write event
+    rescue
+      puts 'rescued'
+    end
   end
 
   def self.reset
