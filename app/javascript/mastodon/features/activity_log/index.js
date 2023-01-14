@@ -1,10 +1,10 @@
 import React, { useEffect, useReducer, useRef } from 'react';
+import { FormattedMessage } from 'react-intl';
 import PropTypes from 'prop-types';
 import Column from 'mastodon/components/column';
 import ColumnHeader from 'mastodon/components/column_header';
 import { HotKeys } from 'react-hotkeys';
-
-import dummy_data from './dummy-data.json';
+import DismissableBanner from 'mastodon/components/dismissable_banner';
 
 import ActivityPubVisualization from 'activitypub-visualization';
 
@@ -19,7 +19,6 @@ export default function ActivityLog({ multiColumn }) {
     default:
       return state;
     }
-  // }, dummy_data);
   }, []);
 
   const columnElement = useRef(null);
@@ -46,24 +45,39 @@ export default function ActivityLog({ multiColumn }) {
   };
 
   return (
-    <HotKeys handlers={handlers}>
-      <Column bindToDocument={!multiColumn} ref={columnElement} label='Activity Log'>
-        <ColumnHeader
-          icon='comments'
-          title='Activity Log'
-          onClick={() => { columnElement.current.scrollTop() }}
-          multiColumn={multiColumn}
-        />
+    <Column bindToDocument={!multiColumn} ref={columnElement} label='Activity Log'>
+      <ColumnHeader
+        icon='comments'
+        title='Activity Log'
+        onClick={() => { columnElement.current.scrollTop() }}
+        multiColumn={multiColumn}
+      />
 
-        {/* <button onClick={() => navigator.clipboard.writeText(JSON.stringify(logs, null, 2))}>Copy logs</button> */}
-        {/* <button onClick={() => dispatch(['reset-logs'])}>Clear logs</button> */}
+      <DismissableBanner id='activity_log'>
+        <p>
+          <FormattedMessage
+            id='dismissable_banner.activity_log_information'
+            defaultMessage='Open Mastodon in another tab and interact with another instance (for example, follow an account on another instance). The resulting Activities will be shown here. You can find more information on my {blog}.'
+            values={{
+              blog: <a href='//seb.jambor.dev/' style={{ color: darkMode ? '#8c8dff' : '#3a3bff', textDecoration: 'none' }}>blog</a>,
+            }}
+          />
+        </p>
+        <p style={{ paddingTop: '5px' }}>
+          <FormattedMessage
+            id='dismissable_banner.activity_log_clear'
+            defaultMessage='Note: Activities will only be logged while this view is open. When you navigate elsewhere, the log will be cleared.'
+          />
+        </p>
+      </DismissableBanner>
 
+      <HotKeys handlers={handlers}>
         <div className={`${darkMode ? 'dark' : ''}`}>
           <ActivityPubVisualization logs={logs} />
         </div>
+      </HotKeys>
 
-      </Column>
-    </HotKeys>
+    </Column>
   );
 }
 
