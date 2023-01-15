@@ -13,6 +13,7 @@ import { connectUserStream } from 'mastodon/actions/streaming';
 import ErrorBoundary from 'mastodon/components/error_boundary';
 import initialState, { title as siteTitle } from 'mastodon/initial_state';
 import { getLocale } from 'mastodon/locales';
+import { addActivityLog } from 'mastodon/actions/activity_log';
 
 const { localeData, messages } = getLocale();
 addLocaleData(localeData);
@@ -59,6 +60,14 @@ export default class Mastodon extends React.PureComponent {
   componentDidMount() {
     if (this.identity.signedIn) {
       this.disconnect = store.dispatch(connectUserStream());
+
+      this.eventSource = new EventSource('/api/v1/activity_log');
+      this.eventSource.onmessage = (event) => {
+        const parsed = JSON.parse(event.data);
+        if (parsed.type !== 'keep-alive') {
+          store.dispatch(addActivityLog(parsed));
+        }
+      };
     }
   }
 
@@ -66,6 +75,7 @@ export default class Mastodon extends React.PureComponent {
     if (this.disconnect) {
       this.disconnect();
       this.disconnect = null;
+      this.eventSource.close();
     }
   }
 
