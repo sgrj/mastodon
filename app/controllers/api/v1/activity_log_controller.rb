@@ -10,10 +10,6 @@ class Api::V1::ActivityLogController < Api::BaseController
     render json: { error: e.to_s }, status: 422
   end
 
-  def index
-    render :text => "hello world"
-  end
-
   def show
     response.headers['Content-Type'] = 'text/event-stream'
     # hack to avoid computing Etag, which delays sending of data
