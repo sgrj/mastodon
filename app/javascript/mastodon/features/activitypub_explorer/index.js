@@ -5,15 +5,15 @@ import { FormattedMessage } from 'react-intl';
 import PropTypes from 'prop-types';
 import Column from 'mastodon/components/column';
 import ColumnHeader from 'mastodon/components/column_header';
-import { HotKeys } from 'react-hotkeys';
 import DismissableBanner from 'mastodon/components/dismissable_banner';
+import { setExplorerData } from 'mastodon/actions/activitypub_explorer';
 
 import { ActivityPubExplorer as Explorer } from 'activitypub-visualization';
 
 
 const mapStateToProps = (state) => {
   return {
-    logs: state.getIn(['activity_log', 'logs']),
+    data: state.getIn(['activitypub_explorer', 'data']),
   };
 };
 
@@ -21,9 +21,9 @@ export default @connect(mapStateToProps)
 class ActivityPubExplorer extends ImmutablePureComponent {
 
   static propTypes = {
+    dispatch: PropTypes.func.isRequired,
     multiColumn: PropTypes.bool,
   };
-
 
   handleHeaderClick = () => {
     this.column.scrollTop();
@@ -33,9 +33,14 @@ class ActivityPubExplorer extends ImmutablePureComponent {
     this.column = c;
   }
 
+  componentWillMount () {
+    // clear explorer data on unbound so that we start with a clean slate on next navigation
+    this.props.dispatch(setExplorerData(null));
+  }
+
   render() {
 
-    const { logs, multiColumn } = this.props;
+    const { data, multiColumn } = this.props;
 
     const darkMode = !(document.body && document.body.classList.contains('theme-mastodon-light'));
 
@@ -60,7 +65,9 @@ class ActivityPubExplorer extends ImmutablePureComponent {
           </p>
         </DismissableBanner>
 
-        <div>Hello world</div>
+        <div className={`${darkMode ? 'dark' : ''}`}>
+          <Explorer initialValue={data} />
+        </div>
       </Column>
     );
   }

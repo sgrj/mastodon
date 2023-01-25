@@ -6,6 +6,7 @@ import PropTypes from 'prop-types';
 import Column from 'mastodon/components/column';
 import ColumnHeader from 'mastodon/components/column_header';
 import { HotKeys } from 'react-hotkeys';
+import { setExplorerData } from 'mastodon/actions/activitypub_explorer';
 import DismissableBanner from 'mastodon/components/dismissable_banner';
 
 import { ActivityPubVisualization } from 'activitypub-visualization';
@@ -19,7 +20,12 @@ const mapStateToProps = (state) => {
 export default @connect(mapStateToProps)
 class ActivityLog extends ImmutablePureComponent {
 
+  static contextTypes = {
+    router: PropTypes.object,
+  };
+
   static propTypes = {
+    dispatch: PropTypes.func.isRequired,
     multiColumn: PropTypes.bool,
   };
 
@@ -33,7 +39,7 @@ class ActivityLog extends ImmutablePureComponent {
 
   render() {
 
-    const { logs, multiColumn } = this.props;
+    const { dispatch, logs, multiColumn } = this.props;
 
     const darkMode = !(document.body && document.body.classList.contains('theme-mastodon-light'));
 
@@ -71,7 +77,10 @@ class ActivityLog extends ImmutablePureComponent {
 
         <HotKeys handlers={handlers}>
           <div className={`${darkMode ? 'dark' : ''}`}>
-            <ActivityPubVisualization logs={logs} />
+            <ActivityPubVisualization logs={logs} showExplorerLink onExplorerLinkClick={(data) => {
+              dispatch(setExplorerData(data));
+              this.context.router.history.push('/activitypub_explorer');
+            }} />
           </div>
         </HotKeys>
 
