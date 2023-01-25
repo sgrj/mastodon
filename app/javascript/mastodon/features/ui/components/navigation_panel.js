@@ -88,6 +88,8 @@ class NavigationPanel extends React.Component {
 
             <ColumnLink transparent to='/activity_log' icon='comments' text='Activity Log' />
 
+            <ColumnLink transparent to='/activitypub_explorer' icon='wpexplorer' text='ActivityPub Explorer' />
+
             <ListPanel />
 
             <hr />
