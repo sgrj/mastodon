@@ -49,6 +49,7 @@ import {
   PinnedStatuses,
   Lists,
   ActivityLog,
+  ActivityPubExplorer,
   Directory,
   Explore,
   FollowRecommendations,
@@ -107,6 +108,7 @@ const keyMap = {
   goToMuted: 'g m',
   goToRequests: 'g r',
   goToActivityLog: 'g a',
+  goToActivityPubExplorer: 'g e',
   toggleHidden: 'x',
   toggleSensitive: 'h',
   openMedia: 'e',
@@ -217,6 +219,7 @@ class SwitchingColumnsArea extends React.PureComponent {
           <WrappedRoute path='/mutes' component={Mutes} content={children} />
           <WrappedRoute path='/lists' component={Lists} content={children} />
           <WrappedRoute path='/activity_log' component={ActivityLog} content={children} />
+          <WrappedRoute path='/activitypub_explorer' component={ActivityPubExplorer} content={children} />
 
           <Route component={BundleColumnError} />
         </WrappedSwitch>
@@ -492,6 +495,10 @@ class UI extends React.PureComponent {
     this.context.router.history.push('/activity_log');
   }
 
+  handleHotkeyGoToActivityPubExplorer = () => {
+    this.context.router.history.push('/activitypub_explorer');
+  }
+
   handleHotkeyGoToNotifications = () => {
     this.context.router.history.push('/notifications');
   }
@@ -550,6 +557,7 @@ class UI extends React.PureComponent {
       back: this.handleHotkeyBack,
       goToHome: this.handleHotkeyGoToHome,
       goToActivityLog: this.handleHotkeyGoToActivityLog,
+      goToActivityPubExplorer: this.handleHotkeyGoToActivityPubExplorer,
       goToNotifications: this.handleHotkeyGoToNotifications,
       goToLocal: this.handleHotkeyGoToLocal,
       goToFederated: this.handleHotkeyGoToFederated,

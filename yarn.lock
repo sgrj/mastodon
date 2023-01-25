@@ -2322,10 +2322,10 @@ acorn@^8.0.4, acorn@^8.1.0, acorn@^8.5.0, acorn@^8.8.0:
   resolved "https://registry.yarnpkg.com/acorn/-/acorn-8.8.0.tgz#88c0187620435c7f6015803f5539dae05a9dbea8"
   integrity sha512-QOxyigPVrpZ2GXT+PFyZTl6TtOFc5egxHIP9IlQ+RbupQuX4RkT/Bee4/kQuC02Xkzg84JcT7oLYtDIQxp+v7w==
 
-activitypub-visualization@^1.0.0:
-  version "1.0.0"
-  resolved "https://registry.yarnpkg.com/activitypub-visualization/-/activitypub-visualization-1.0.0.tgz#728ce9a20336bf927980748c37c8b5206cafecac"
-  integrity sha512-azxnf4POMTsI8J0PiOXeD70wZvxAd6KdcD2YIE+AqkW00Fgg39Jxi+OcImc8GoAiUh7dpFp6nLA+WVH4uVnIEw==
+activitypub-visualization@^1.1.0:
+  version "1.1.0"
+  resolved "https://registry.yarnpkg.com/activitypub-visualization/-/activitypub-visualization-1.1.0.tgz#db7875657aa3215f6d7be16795964c82c1021efe"
+  integrity sha512-0DrnCdmpx5551q0vZiQYHu3ZsVVFP0JJKLHQpbLmgetVJxGjRoZC7iwjh+tvyYixBhUneIAhVJ2VH0bugiAwFA==
 
 agent-base@6:
   version "6.0.2"

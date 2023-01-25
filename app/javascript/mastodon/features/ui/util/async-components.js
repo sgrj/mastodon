@@ -42,6 +42,10 @@ export function ActivityLog () {
   return import(/* webpackChunkName: "features/activity_log" */'../../activity_log');
 }
 
+export function ActivityPubExplorer () {
+  return import(/* webpackChunkName: "features/activity_log" */'../../activitypub_explorer');
+}
+
 export function Status () {
   return import(/* webpackChunkName: "features/status" */'../../status');
 }

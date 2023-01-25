@@ -8,7 +8,8 @@ import ColumnHeader from 'mastodon/components/column_header';
 import { HotKeys } from 'react-hotkeys';
 import DismissableBanner from 'mastodon/components/dismissable_banner';
 
-import { ActivityPubVisualization } from 'activitypub-visualization';
+import { ActivityPubExplorer as Explorer } from 'activitypub-visualization';
+
 
 const mapStateToProps = (state) => {
   return {
@@ -17,11 +18,12 @@ const mapStateToProps = (state) => {
 };
 
 export default @connect(mapStateToProps)
-class ActivityLog extends ImmutablePureComponent {
+class ActivityPubExplorer extends ImmutablePureComponent {
 
   static propTypes = {
     multiColumn: PropTypes.bool,
   };
+
 
   handleHeaderClick = () => {
     this.column.scrollTop();
@@ -37,16 +39,11 @@ class ActivityLog extends ImmutablePureComponent {
 
     const darkMode = !(document.body && document.body.classList.contains('theme-mastodon-light'));
 
-    // hijack the toggleHidden shortcut to copy the logs to clipbaord
-    const handlers = {
-      toggleHidden: () => navigator.clipboard.writeText(JSON.stringify(logs, null, 2)),
-    };
-
     return (
-      <Column bindToDocument={!multiColumn} ref={this.setRef} label='Activity Log'>
+      <Column bindToDocument={!multiColumn} ref={this.setRef} label='ActivityPub Explorer'>
         <ColumnHeader
-          icon='comments'
-          title='Activity Log'
+          icon='wpexplorer'
+          title='ActivityPub Explorer'
           onClick={this.handleHeaderClick}
           multiColumn={multiColumn}
         />
@@ -54,29 +51,19 @@ class ActivityLog extends ImmutablePureComponent {
         <DismissableBanner id='activity_log'>
           <p>
             <FormattedMessage
-              id='dismissable_banner.activity_log_information'
-              defaultMessage='When you interact with another instance (for example, follow an account on another instance), the resulting Activities will be shown here. You can find more information on my {blog}.'
+              id='dismissable_banner.activity_pub_explorer_information'
+              defaultMessage='TODO. You can find more information on my {blog}.'
               values={{
                 blog: <a href='//seb.jambor.dev/' style={{ color: darkMode ? '#8c8dff' : '#3a3bff', textDecoration: 'none' }}>blog</a>,
               }}
             />
           </p>
-          <p style={{ paddingTop: '5px' }}>
-            <FormattedMessage
-              id='dismissable_banner.activity_log_clear'
-              defaultMessage='Note: Activities will only be logged while Mastodon is open. When you navigate elsewhere or reload the page, the log will be cleared.'
-            />
-          </p>
         </DismissableBanner>
 
-        <HotKeys handlers={handlers}>
-          <div className={`${darkMode ? 'dark' : ''}`}>
-            <ActivityPubVisualization logs={logs} />
-          </div>
-        </HotKeys>
-
+        <div>Hello world</div>
       </Column>
     );
   }
 
 }
+
