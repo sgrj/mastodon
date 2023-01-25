@@ -544,6 +544,8 @@ Rails.application.routes.draw do
 
       resource :activity_log, only: [:show], controller: 'activity_log'
 
+      get '/json_ld', to: 'json_ld#show'
+
       resource :instance, only: [:show] do
         resources :peers, only: [:index], controller: 'instances/peers'
         resources :rules, only: [:index], controller: 'instances/rules'
