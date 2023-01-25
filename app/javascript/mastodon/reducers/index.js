@@ -10,6 +10,7 @@ import domain_lists from './domain_lists';
 import accounts from './accounts';
 import accounts_counters from './accounts_counters';
 import activity_log from './activity_log';
+import activitypub_explorer from './activitypub_explorer';
 import statuses from './statuses';
 import relationships from './relationships';
 import settings from './settings';
@@ -46,6 +47,7 @@ import followed_tags from './followed_tags';
 const reducers = {
   announcements,
   activity_log,
+  activitypub_explorer,
   dropdown_menu,
   timelines,
   meta,
