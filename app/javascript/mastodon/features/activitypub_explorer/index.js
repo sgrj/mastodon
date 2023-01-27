@@ -6,7 +6,7 @@ import PropTypes from 'prop-types';
 import Column from 'mastodon/components/column';
 import ColumnHeader from 'mastodon/components/column_header';
 import DismissableBanner from 'mastodon/components/dismissable_banner';
-import { setExplorerData } from 'mastodon/actions/activitypub_explorer';
+import { setExplorerData, setExplorerUrl } from 'mastodon/actions/activitypub_explorer';
 
 import { ActivityPubExplorer as Explorer } from 'activitypub-visualization';
 
@@ -14,6 +14,7 @@ import { ActivityPubExplorer as Explorer } from 'activitypub-visualization';
 const mapStateToProps = (state) => {
   return {
     data: state.getIn(['activitypub_explorer', 'data']),
+    url: state.getIn(['activitypub_explorer', 'url']),
   };
 };
 
@@ -33,14 +34,15 @@ class ActivityPubExplorer extends ImmutablePureComponent {
     this.column = c;
   }
 
-  componentWillMount () {
+  componentWillUnmount () {
     // clear explorer data on unbound so that we start with a clean slate on next navigation
     this.props.dispatch(setExplorerData(null));
+    this.props.dispatch(setExplorerUrl(''));
   }
 
   render() {
 
-    const { data, multiColumn } = this.props;
+    const { data, url, multiColumn } = this.props;
 
     const darkMode = !(document.body && document.body.classList.contains('theme-mastodon-light'));
 
@@ -66,7 +68,7 @@ class ActivityPubExplorer extends ImmutablePureComponent {
         </DismissableBanner>
 
         <div className={`${darkMode ? 'dark' : ''}`}>
-          <Explorer initialValue={data} />
+          <Explorer initialValue={data} initialUrl={url} />
         </div>
       </Column>
     );
