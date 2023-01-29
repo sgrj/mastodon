@@ -17,6 +17,8 @@ class ActivityLogger
       logger.write event
     rescue
       puts 'rescued'
+      logger.close
+      puts 'closed logger'
     end
   end
 

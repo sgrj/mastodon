@@ -59,9 +59,10 @@ class ActivityPubExplorer extends ImmutablePureComponent {
           <p>
             <FormattedMessage
               id='dismissable_banner.activity_pub_explorer_information'
-              defaultMessage='TODO. You can find more information on my {blog}.'
+              defaultMessage='The AcivityPub Explorer provides a convenient way to browse through ActivityPub data. Click on any {https} URL in the returned JSON to fetch the corresponding data. You can find more information on my {blog}.'
               values={{
-                blog: <a href='//seb.jambor.dev/' style={{ color: darkMode ? '#8c8dff' : '#3a3bff', textDecoration: 'none' }}>blog</a>,
+                blog: <a className='blog-link' href='//seb.jambor.dev/'>blog</a>,
+                https: <code>https://</code>,
               }}
             />
           </p>

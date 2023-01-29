@@ -63,7 +63,7 @@ class ActivityLog extends ImmutablePureComponent {
               id='dismissable_banner.activity_log_information'
               defaultMessage='When you interact with another instance (for example, follow an account on another instance), the resulting Activities will be shown here. You can find more information on my {blog}.'
               values={{
-                blog: <a href='//seb.jambor.dev/' style={{ color: darkMode ? '#8c8dff' : '#3a3bff', textDecoration: 'none' }}>blog</a>,
+                blog: <a className='blog-link' href='//seb.jambor.dev/'>blog</a>,
               }}
             />
           </p>
