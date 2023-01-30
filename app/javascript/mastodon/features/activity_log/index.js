@@ -48,6 +48,35 @@ class ActivityLog extends ImmutablePureComponent {
       toggleHidden: () => navigator.clipboard.writeText(JSON.stringify(logs, null, 2)),
     };
 
+    const Content = () => {
+      if (logs.length > 0) {
+        return ( <HotKeys handlers={handlers}>
+          <div className={`${darkMode ? 'dark' : ''}`} style={{height: '100%'}}>
+            <ActivityPubVisualization
+              logs={logs}
+              clickableLinks
+              onLinkClick={(url) => {
+                dispatch(setExplorerUrl(url));
+                this.context.router.history.push('/activitypub_explorer');
+              }}
+              showExplorerLink
+              onExplorerLinkClick={(data) => {
+                dispatch(setExplorerData(data));
+                this.context.router.history.push('/activitypub_explorer');
+              }}
+            />
+          </div>
+        </HotKeys>) } else {
+          return (<div className='empty-column-indicator'>
+            <FormattedMessage id='empty_column.activity_log' defaultMessage='The Activity Log is empty. Interact with accounts on other instances to trigger activities. You can find more information on my {blog}.'
+              values={{
+                blog: <a className='blog-link' href='//seb.jambor.dev/'>blog</a>,
+              }}
+            />
+          </div>)
+        }
+    }
+
     return (
       <Column bindToDocument={!multiColumn} ref={this.setRef} label='Activity Log'>
         <ColumnHeader
@@ -75,24 +104,7 @@ class ActivityLog extends ImmutablePureComponent {
           </p>
         </DismissableBanner>
 
-        <HotKeys handlers={handlers}>
-          <div className={`${darkMode ? 'dark' : ''}`}>
-            <ActivityPubVisualization
-              logs={logs}
-              clickableLinks
-              onLinkClick={(url) => {
-                dispatch(setExplorerUrl(url));
-                this.context.router.history.push('/activitypub_explorer');
-              }}
-              showExplorerLink
-              onExplorerLinkClick={(data) => {
-                dispatch(setExplorerData(data));
-                this.context.router.history.push('/activitypub_explorer');
-              }}
-            />
-          </div>
-        </HotKeys>
-
+        <Content />
       </Column>
     );
   }
