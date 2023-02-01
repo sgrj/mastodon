@@ -25,4 +25,15 @@ class ActivityLogger
   def self.reset
     @@loggers.clear
   end
+
+  Thread.new {
+    while true
+      event = ActivityLogEvent.new('keep-alive', nil, nil)
+      @@loggers.each_key do |key|
+        ActivityLogger.log(key, event)
+      end
+
+      sleep 10
+    end
+  }
 end

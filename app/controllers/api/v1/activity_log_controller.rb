@@ -3,7 +3,6 @@
 class Api::V1::ActivityLogController < Api::BaseController
   include ActionController::Live
 
-  # before_action -> { doorkeeper_authorize! :read }, only: [:show]
   before_action :require_user!
 
   rescue_from ArgumentError do |e|
@@ -15,22 +14,11 @@ class Api::V1::ActivityLogController < Api::BaseController
     # hack to avoid computing Etag, which delays sending of data
     response.headers['Last-Modified'] = Time.now.httpdate
 
-    sse = SSE.new(response.stream)
-
-    # id = current_account.local_username_and_domain
-    id = current_account.username
-
-    begin
-      ActivityLogger.register(id, sse)
-
-      while true
-        event = ActivityLogEvent.new('keep-alive', nil, nil)
-        ActivityLogger.log(id, event)
-        sleep 10
-      end
-    ensure
-      ActivityLogger.unregister(id, sse)
-      sse.close
+    # adapted from https://blog.chumakoff.com/en/posts/rails_sse_rack_hijacking_api
+    response.headers["rack.hijack"] = proc do |stream|
+      ActivityLogger.register(current_account.username, SSE.new(stream))
     end
+
+    head :ok
   end
 end
