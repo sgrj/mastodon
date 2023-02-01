@@ -12,10 +12,20 @@ class Api::V1::JsonLdController < Api::BaseController
   def show
     url = params[:url]
 
-    api_response = Faraday.get(url, nil, {'Accept' => 'application/ld+json; profile="https://www.w3.org/ns/activitystreams"'})
+    request.env['rack.hijack'].call
+    io = request.env['rack.hijack_io']
+    Thread.new {
+      begin
+        api_response = Faraday.get(url, nil, {'Accept' => 'application/ld+json; profile="https://www.w3.org/ns/activitystreams"'})
 
-    response.headers['Content-Type'] = api_response.headers['Content-Type']
-
-    render body: api_response.body, status: api_response.status
+        io.write("HTTP/1.1 #{api_response.status}\r\n")
+        io.write("Content-Type: #{api_response.headers['Content-Type']}\r\n")
+        io.write("Connection: close\r\n")
+        io.write("\r\n")
+        io.write(api_response.body)
+      ensure
+        io.close
+      end
+    }
   end
 end
