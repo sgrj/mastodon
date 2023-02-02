@@ -1,6 +1,8 @@
 # frozen_string_literal: true
 
-require 'faraday'
+require "net/http"
+require "uri"
+
 
 class Api::V1::JsonLdController < Api::BaseController
   include ActionController::Live
@@ -16,7 +18,13 @@ class Api::V1::JsonLdController < Api::BaseController
     io = request.env['rack.hijack_io']
     Thread.new {
       begin
-        api_response = Faraday.get(url, nil, {'Accept' => 'application/ld+json; profile="https://www.w3.org/ns/activitystreams"'})
+        uri = URI.parse(url)
+
+        http = Net::HTTP.new(uri.host, uri.port)
+        http.open_timeout = 3
+        http.read_timeout = 5
+        http.write_timeout = 5
+        api_response = http.request(Net::HTTP::Get.new(uri.request_uri))
 
         io.write("HTTP/1.1 #{api_response.status}\r\n")
         io.write("Content-Type: #{api_response.headers['Content-Type']}\r\n")
