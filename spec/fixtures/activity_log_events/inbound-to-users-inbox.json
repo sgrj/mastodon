@@ -1,5 +1,6 @@
 {
   "timestamp":"2022-12-08T17:12:38Z",
+  "sender": "https://other.org/users/alice",
   "type": "inbound",
   "path": "https://example.com/users/bob/inbox",
   "data": {

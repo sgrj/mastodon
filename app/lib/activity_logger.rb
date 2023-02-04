@@ -28,7 +28,7 @@ class ActivityLogger
 
   Thread.new {
     while true
-      event = ActivityLogEvent.new('keep-alive', nil, nil)
+      event = ActivityLogEvent.new('keep-alive', nil, nil, nil)
       @@loggers.each_key do |key|
         ActivityLogger.log(key, event)
       end

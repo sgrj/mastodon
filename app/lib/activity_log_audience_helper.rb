@@ -6,9 +6,9 @@ class ActivityLogAudienceHelper
     domain = Rails.configuration.x.web_domain
 
     if activity_log_event.type == 'outbound'
-      actor = activity_log_event.data['actor']
+      sender = activity_log_event.sender
 
-      if actor and match = actor.match(Regexp.new("https://#{domain}/users/([^/]*)"))
+      if sender and match = sender.match(Regexp.new("https://#{domain}/users/([^/]*)"))
         [match.captures[0]]
       else
         []

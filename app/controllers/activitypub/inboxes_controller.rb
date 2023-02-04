@@ -76,7 +76,13 @@ class ActivityPub::InboxesController < ActivityPub::BaseController
   end
 
   def process_payload
-    event = ActivityLogEvent.new('inbound', "https://#{Rails.configuration.x.web_domain}#{request.path}", Oj.load(body, mode: :strict))
+    raw_signature = request.headers['Signature']
+    tree          = SignatureParamsParser.new.parse(raw_signature)
+    signature_params = SignatureParamsTransformer.new.apply(tree)
+
+    sender = actor_from_key_id(signature_params['keyId'])
+
+    event = ActivityLogEvent.new('inbound', sender.uri, "https://#{Rails.configuration.x.web_domain}#{request.path}", Oj.load(body, mode: :strict))
 
     @activity_log_publisher.publish(event)
 
