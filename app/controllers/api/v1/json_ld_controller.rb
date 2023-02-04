@@ -21,6 +21,12 @@ class Api::V1::JsonLdController < Api::BaseController
 
         api_response = conn.get(url, nil, {'Accept' => 'application/ld+json; profile="https://www.w3.org/ns/activitystreams"'})
 
+        max_redirects = 5
+        while api_response.status == 301 || api_response.status == 302 and max_redirects > 0 do
+          api_response = conn.get(api_response.headers['Location'], nil, {'Accept' => 'application/ld+json; profile="https://www.w3.org/ns/activitystreams"'})
+          max_redirects -= 1
+        end
+
         io.write("HTTP/1.1 #{api_response.status}\r\n")
         io.write("Content-Type: #{api_response.headers['Content-Type']}\r\n")
         io.write("Access-Control-Allow-Origin: *\r\n")
