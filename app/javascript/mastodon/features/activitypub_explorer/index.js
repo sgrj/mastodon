@@ -69,7 +69,13 @@ class ActivityPubExplorer extends ImmutablePureComponent {
         </DismissableBanner>
 
         <div className={`${darkMode ? 'dark' : ''}`}>
-          <Explorer initialValue={data} initialUrl={url} />
+          <Explorer
+            fetchMethod={async (url) =>
+              fetch('/api/v1/json_ld?' + new URLSearchParams({ url }).toString())
+            }
+            initialValue={data}
+            initialUrl={url}
+          />
         </div>
       </Column>
     );
