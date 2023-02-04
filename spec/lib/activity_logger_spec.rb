@@ -1,12 +1,6 @@
 require 'json'
 require 'rails_helper'
 
-def activity_log_event_fixture(name)
-  json_string = File.read(Rails.root.join('spec', 'fixtures', 'activity_log_events', name))
-
-  ActivityLogEvent.from_json_string(json_string)
-end
-
 RSpec.describe ActivityLogger do
 
   after(:each) do

@@ -29,16 +29,17 @@ class ActivityPub::DeliveryWorker
   def perform(json, source_account_id, inbox_url, options = {})
     return unless DeliveryFailureTracker.available?(inbox_url)
 
-    event = ActivityLogEvent.new('outbound', inbox_url, Oj.load(json, mode: :strict))
-
-    @activity_log_publisher.publish(event)
-
     @options        = options.with_indifferent_access
     @json           = json
     @source_account = Account.find(source_account_id)
     @inbox_url      = inbox_url
     @host           = Addressable::URI.parse(inbox_url).normalized_site
     @performed      = false
+
+    event = ActivityLogEvent.new('outbound', "https://#{Rails.configuration.x.web_domain}/users/#{@source_account.username}", inbox_url, Oj.load(json, mode: :strict))
+
+    @activity_log_publisher.publish(event)
+
 
     perform_request
   ensure
