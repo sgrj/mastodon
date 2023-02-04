@@ -23,11 +23,13 @@ class Api::V1::JsonLdController < Api::BaseController
 
         io.write("HTTP/1.1 #{api_response.status}\r\n")
         io.write("Content-Type: #{api_response.headers['Content-Type']}\r\n")
+        io.write("Access-Control-Allow-Origin: *\r\n")
         io.write("Connection: close\r\n")
         io.write("\r\n")
         io.write(api_response.body)
       rescue
         io.write("HTTP/1.1 500\r\n")
+        io.write("Access-Control-Allow-Origin: *\r\n")
         io.write("Connection: close\r\n")
         io.write("\r\n")
       ensure
