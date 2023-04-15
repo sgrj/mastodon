@@ -34,7 +34,9 @@
     color: #8c8dff;
     text-decoration: underline;
 
-    &:hover {
+    &:hover,
+    &:active,
+    &:focus {
       text-decoration: none;
     }
   }
