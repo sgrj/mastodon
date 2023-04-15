@@ -145,7 +145,13 @@ class Auth::RegistrationsController < Devise::RegistrationsController
   end
 
   def determine_layout
-    %w(edit update).include?(action_name) ? 'admin' : 'auth'
+    if %w(edit update).include?(action_name)
+      'admin'
+    elsif action_name == 'new'
+      'academy-signup'
+    else
+      'auth'
+    end
   end
 
   def set_sessions

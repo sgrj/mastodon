@@ -4,32 +4,32 @@
 - content_for :header_tags do
   = render partial: 'shared/og', locals: { description: description_for_sign_up }
 
-= simple_form_for(resource, as: resource_name, url: registration_path(resource_name), html: { novalidate: false }) do |f|
-  %h1.title= t('auth.sign_up.title', domain: site_hostname)
-  %p.lead= t('auth.sign_up.activity_log_preamble_html')
+.academy-introduction
+  %h1.title ActivityPub.Academy
+  %p.subtitle Explore the ActivityPub protocol interactively
 
-  = render 'shared/error_messages', object: resource
 
-  - if @invite.present? && @invite.autofollow?
-    .fields-group.invited-by
-      %p.hint= t('invites.invited_by')
-      = render 'application/card', account: @invite.user.account
+  %p ActivityPub.Academy is a learning resource for <a href="https://www.w3.org/TR/activitypub/">ActivityPub</a>. The protocol is brought to life by showing Activities sent between different instances in real time!
 
-  .fields-group
-    = f.input :confirm_password, as: :string, placeholder: t('simple_form.labels.defaults.honeypot', label: t('simple_form.labels.defaults.password')), required: false, input_html: { 'aria-label' => t('simple_form.labels.defaults.honeypot', label: t('simple_form.labels.defaults.password')), :autocomplete => 'off' }, hint: false
-    = f.input :website, as: :url, wrapper: :with_label, label: t('simple_form.labels.defaults.honeypot', label: 'Website'), required: false, input_html: { 'aria-label' => t('simple_form.labels.defaults.honeypot', label: 'Website'), :autocomplete => 'off' }
+  %p Sign up for a fully functioning Mastodon account (accounts are deleted after one day, but you can always create a new one). Follow other accounts, create posts, boost &amp; like, and see the effects on the protocol visualized.
 
-  - if approved_registrations? && !@invite.present?
+  %p Learn more on my <a href="//seb.jambor.dev">blog</a>.
+
+  = simple_form_for(resource, as: resource_name, url: registration_path(resource_name), html: { novalidate: false }) do |f|
+
+    = render 'shared/error_messages', object: resource
+
     .fields-group
-      = f.simple_fields_for :invite_request, resource.invite_request || resource.build_invite_request do |invite_request_fields|
-        = invite_request_fields.input :text, as: :text, wrapper: :with_block_label, required: Setting.require_invite_text
+      = f.input :confirm_password, as: :string, placeholder: t('simple_form.labels.defaults.honeypot', label: t('simple_form.labels.defaults.password')), required: false, input_html: { 'aria-label' => t('simple_form.labels.defaults.honeypot', label: t('simple_form.labels.defaults.password')), :autocomplete => 'off' }, hint: false
+      = f.input :website, as: :url, wrapper: :with_label, label: t('simple_form.labels.defaults.honeypot', label: 'Website'), required: false, input_html: { 'aria-label' => t('simple_form.labels.defaults.honeypot', label: 'Website'), :autocomplete => 'off' }
 
+    = hidden_field_tag :accept, params[:accept]
+    = f.input :invite_code, as: :hidden
 
-  = hidden_field_tag :accept, params[:accept]
-  = f.input :invite_code, as: :hidden
+    .fields-group
+      = f.input :agreement, as: :boolean, wrapper: :with_label, label: t('auth.privacy_policy_agreement_html', rules_path: about_more_path, privacy_policy_path: privacy_policy_path), required: true
 
-  .fields-group
-    = f.input :agreement, as: :boolean, wrapper: :with_label, label: t('auth.privacy_policy_agreement_html', rules_path: about_more_path, privacy_policy_path: privacy_policy_path), required: true
+    .actions
+      = f.button :button, @invite.present? ? t('auth.register') : sign_up_message, type: :submit
 
-  .actions
-    = f.button :button, @invite.present? ? t('auth.register') : sign_up_message, type: :submit
+= image_tag asset_pack_path('media/images/academy-mascot.webp'), alt: 'The Mastodon mascot wearing a university gown', class: 'mascot'

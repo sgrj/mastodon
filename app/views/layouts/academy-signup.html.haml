@@ -1,0 +1,10 @@
+- content_for :header_tags do
+  = javascript_pack_tag 'public', crossorigin: 'anonymous'
+
+- content_for :content do
+  .academy-signup-container
+    = render 'flashes'
+
+    = yield
+
+= render template: 'layouts/application'
