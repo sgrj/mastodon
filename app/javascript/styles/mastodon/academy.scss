@@ -1,0 +1,72 @@
+.academy-signup-container {
+  max-width: 1150px;
+  margin: 20px auto;
+  display: flex;
+  align-items: center;
+
+  .title {
+    font-size: 50px;
+    font-weight: 700;
+    margin-bottom: 30px;
+  }
+
+  .subtitle {
+    font-size: 28px;
+    line-height: 32px;
+    color: #d9e1e8;
+    margin-bottom: 20px;
+  }
+
+  p {
+    font-size: 20px;
+    line-height: 26px;
+    color: #d9e1e8;
+    margin: 15px 0;
+  }
+
+  .mascot {
+    width: 500px;
+    max-width: 100%;
+    transform: scaleX(-1);
+  }
+
+  a {
+    color: #8c8dff;
+    text-decoration: underline;
+
+    &:hover {
+      text-decoration: none;
+    }
+  }
+
+  & > * {
+    padding: 15px;
+  }
+}
+
+@media screen and (max-width: 1150px) {
+  .academy-signup-container {
+    max-width: 800px;
+    flex-direction: column;
+
+    .title {
+      font-size: 40px;
+    }
+  }
+}
+
+@media screen and (max-width: 450px) {
+  .academy-signup-container {
+    .title {
+      font-size: 30px;
+    }
+
+    .subtitle {
+      font-size: 24px;
+    }
+
+    p {
+      font-size: 18px;
+    }
+  }
+}
