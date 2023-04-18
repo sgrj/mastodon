@@ -1013,7 +1013,6 @@ en:
       title: Sign in to %{domain}
     sign_up:
       preamble: With an account on this Mastodon server, you'll be able to follow any other person on the network, regardless of where their account is hosted.
-      activity_log_preamble_html: ActivityPub.Academy is a learning resource for <a href="https://www.w3.org/TR/activitypub/">ActivityPub</a>. The protocol is brought to life by showing Activities between different instances in real time! <br/><br/> After signing up, you are given a fully functional Mastodon account. You can follow other accounts, create posts, repost, like, etc. These actions generate Activities following the ActivityPub spec, which will be shown to you in real time. You can learn more about this on my <a href="//seb.jambor.dev">blog</a>. <br/><br/> Note that your account is only valid for 24 hours and will be deleted automatically afterwards.
       title: Let's get you set up on %{domain}.
     status:
       account_status: Account status

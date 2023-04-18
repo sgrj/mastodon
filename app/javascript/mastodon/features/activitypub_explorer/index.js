@@ -61,7 +61,7 @@ class ActivityPubExplorer extends ImmutablePureComponent {
               id='dismissable_banner.activity_pub_explorer_information'
               defaultMessage='The AcivityPub Explorer provides a convenient way to browse through ActivityPub data. Click on any {https} URL in the returned JSON to fetch the corresponding data. You can find more information on my {blog}.'
               values={{
-                blog: <a className='blog-link' href='//seb.jambor.dev/'>blog</a>,
+                blog: <a className='blog-link' href='https://seb.jambor.dev/posts/activitypub-academy/'>blog</a>,
                 https: <code>https://</code>,
               }}
             />

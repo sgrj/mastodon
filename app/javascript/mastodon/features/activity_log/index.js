@@ -70,7 +70,7 @@ class ActivityLog extends ImmutablePureComponent {
           return (<div className='empty-column-indicator'>
             <FormattedMessage id='empty_column.activity_log' defaultMessage='The Activity Log is empty. Interact with accounts on other instances to trigger activities. You can find more information on my {blog}.'
               values={{
-                blog: <a className='blog-link' href='//seb.jambor.dev/'>blog</a>,
+                blog: <a className='blog-link' href='https://seb.jambor.dev/posts/activitypub-academy/'>blog</a>,
               }}
             />
           </div>)
@@ -92,7 +92,7 @@ class ActivityLog extends ImmutablePureComponent {
               id='dismissable_banner.activity_log_information'
               defaultMessage='When you interact with another instance (for example, follow an account on another instance), the resulting Activities will be shown here. You can find more information on my {blog}.'
               values={{
-                blog: <a className='blog-link' href='//seb.jambor.dev/'>blog</a>,
+                blog: <a className='blog-link' href='https://seb.jambor.dev/posts/activitypub-academy/'>blog</a>,
               }}
             />
           </p>
