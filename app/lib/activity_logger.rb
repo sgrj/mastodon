@@ -18,6 +18,7 @@ class ActivityLogger
     rescue
       puts 'rescued'
       logger.close
+      ActivityLogger.unregister(id, logger)
       puts 'closed logger'
     end
   end
@@ -26,14 +27,17 @@ class ActivityLogger
     @@loggers.clear
   end
 
-  Thread.new {
-    while true
-      event = ActivityLogEvent.new('keep-alive', nil, nil, nil)
-      @@loggers.each_key do |key|
-        ActivityLogger.log(key, event)
-      end
+  def self.start_keep_alive_thread
+    Thread.new {
+      while true
+        event = ActivityLogEvent.new('keep-alive', nil, nil, nil)
+        puts "writing keep-alive"
+        @@loggers.each_key do |key|
+          ActivityLogger.log(key, event)
+        end
 
-      sleep 10
-    end
-  }
+        sleep 10
+      end
+    }
+  end
 end

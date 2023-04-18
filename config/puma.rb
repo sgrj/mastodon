@@ -25,6 +25,8 @@ on_worker_boot do
   Thread.new {
     ActivityLogSubscriber.new.start
   }
+
+  ActivityLogger.start_keep_alive_thread
 end
 
 plugin :tmp_restart
