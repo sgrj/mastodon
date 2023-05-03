@@ -73,7 +73,7 @@ class ActivityPubExplorer extends ImmutablePureComponent {
             fetchMethod={async (url) =>
               fetch('/api/v1/json_ld?' + new URLSearchParams({ url }).toString())
             }
-            initialValue={data}
+            initialActivityJson={data}
             initialUrl={url}
           />
         </div>
