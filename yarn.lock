@@ -2190,10 +2190,10 @@ acorn@^8.8.0:
   resolved "https://registry.yarnpkg.com/acorn/-/acorn-8.8.2.tgz#1b2f25db02af965399b9776b0c2c391276d37c4a"
   integrity sha512-xjIYgE8HBrkpd/sJqOGNspf8uHG+NOHGOw6a/Urj8taM2EXfdNAH2oFcPeIFfsv3+kz/mJrS5VuMqbNLjCa2vw==
 
-activitypub-visualization@^1.2.0:
-  version "1.2.0"
-  resolved "https://registry.yarnpkg.com/activitypub-visualization/-/activitypub-visualization-1.2.0.tgz#93c7f5930c08f50e77aae09ea35d17f1f6ed3305"
-  integrity sha512-OP17Ynu7WDAc8KPSQXr0mn21vW6ozKsMHPcpGnICNW58sMuGj14//Lu10YxPxu/gn94z+mUSRCouilNmri6vKw==
+activitypub-visualization@^1.3.0:
+  version "1.3.0"
+  resolved "https://registry.yarnpkg.com/activitypub-visualization/-/activitypub-visualization-1.3.0.tgz#a6aba3031ecc96805d9e6923ed35758cdd3de1e6"
+  integrity sha512-OsqJkpK7mUiBxeJuLaXLYJDISnHiZTYSFO2N5pBHRRy0ia33BBG5yhfmEb6UhiwY4Yfi/1sqYLLC4aPaARta+A==
 
 agent-base@6:
   version "6.0.2"
@@ -4938,7 +4938,7 @@ file-loader@^6.2.0:
     loader-utils "^2.0.0"
     schema-utils "^3.0.0"
 
-file-type@^12.4.1:
+file-type@^12.4.2:
   version "12.4.2"
   resolved "https://registry.yarnpkg.com/file-type/-/file-type-12.4.2.tgz#a344ea5664a1d01447ee7fb1b635f72feb6169d9"
   integrity sha512-UssQP5ZgIOKelfsaB5CuGAL+Y+q7EmONuiwF3N5HAH0t27rvrttgi6Ra9k/+DVaY9UF6+ybxu5pOXLUdA8N7Vg==
@@ -5719,10 +5719,10 @@ icss-utils@^5.0.0, icss-utils@^5.1.0:
   resolved "https://registry.yarnpkg.com/icss-utils/-/icss-utils-5.1.0.tgz#c6be6858abd013d768e98366ae47e25d5887b1ae"
   integrity sha512-soFhflCVWLfRNOPU3iv5Z9VUdT44xFRbzjLsEzSr5AQmgqPMTHdU3PMT1Cf1ssx8fLNJDA1juftYl+PUcv3MqA==
 
-idb-keyval@^3.2.0:
-  version "3.2.0"
-  resolved "https://registry.yarnpkg.com/idb-keyval/-/idb-keyval-3.2.0.tgz#cbbf354deb5684b6cdc84376294fc05932845bd6"
-  integrity sha512-slx8Q6oywCCSfKgPgL0sEsXtPVnSbTLWpyiDcu6msHOyKOLari1TD1qocXVCft80umnkk3/Qqh3lwoFt8T/BPQ==
+idb-keyval@^6.2.0:
+  version "6.2.1"
+  resolved "https://registry.yarnpkg.com/idb-keyval/-/idb-keyval-6.2.1.tgz#94516d625346d16f56f3b33855da11bfded2db33"
+  integrity sha512-8Sb3veuYCyrZL+VBt9LJfZjLUPWVvqn8tG28VqYNFCo43KHcKuq+b4EiXGeuaLAQWL2YmyDgMp2aSpH9JHsEQg==
 
 idb@^7.0.1:
   version "7.0.2"
@@ -6112,10 +6112,10 @@ is-directory@^0.3.1:
   resolved "https://registry.yarnpkg.com/is-directory/-/is-directory-0.3.1.tgz#61339b6f2475fc772fd9c9d83f5c8575dc154ae1"
   integrity sha1-YTObbyR1/Hcv2cnYP1yFddwVSuE=
 
-is-electron@^2.2.0:
-  version "2.2.0"
-  resolved "https://registry.yarnpkg.com/is-electron/-/is-electron-2.2.0.tgz#8943084f09e8b731b3a7a0298a7b5d56f6b7eef0"
-  integrity sha512-SpMppC2XR3YdxSzczXReBjqs2zGscWQpBIKqwXYBFic0ERaxNVgwLCHwOLZeESfdJQjX0RDvrJ1lBXX2ij+G1Q==
+is-electron@^2.2.2:
+  version "2.2.2"
+  resolved "https://registry.yarnpkg.com/is-electron/-/is-electron-2.2.2.tgz#3778902a2044d76de98036f5dc58089ac4d80bb9"
+  integrity sha512-FO/Rhvz5tuw4MCWkpMzHFKWD2LsfHzIb7i6MdPYZ/KW7AlxawyLkqdy+jPZP1WubqEADE3O4FUENlJHDfQASRg==
 
 is-extendable@^0.1.0, is-extendable@^0.1.1:
   version "0.1.1"
@@ -7683,10 +7683,10 @@ nice-try@^1.0.4:
   resolved "https://registry.yarnpkg.com/nice-try/-/nice-try-1.0.5.tgz#a3378a7696ce7d223e88fc9b764bd7ef1089e366"
   integrity sha512-1nh45deeb5olNY7eX82BkPO7SSxR5SSYJiPTrTdFUVYwAl8CKMA5N9PjTYkHiRjisVcxcQ1HXdLhx2qxxJzLNQ==
 
-node-fetch@^2.6.0:
-  version "2.6.7"
-  resolved "https://registry.yarnpkg.com/node-fetch/-/node-fetch-2.6.7.tgz#24de9fba827e3b4ae44dc8b20256a379160052ad"
-  integrity sha512-ZjMPFEfVx5j+y2yF35Kzx5sF7kDzxuDj6ziH4FFbOp87zKDZNx8yExJIb05OGF4Nlt9IHFIMBkRl41VdvcNdbQ==
+node-fetch@^2.6.9:
+  version "2.6.9"
+  resolved "https://registry.yarnpkg.com/node-fetch/-/node-fetch-2.6.9.tgz#7c7f744b5cc6eb5fd404e0c7a9fec630a55657e6"
+  integrity sha512-DJm/CJkZkRjKKj4Zi4BsKVZh3ValV5IR5s7LVZnW+6YMh0W1BfNA8XSs6DLMGYlId5F3KnA70uu2qepcR08Qqg==
   dependencies:
     whatwg-url "^5.0.0"
 
@@ -7960,7 +7960,7 @@ onetime@^5.1.2:
   dependencies:
     mimic-fn "^2.1.0"
 
-opencollective-postinstall@^2.0.2:
+opencollective-postinstall@^2.0.3:
   version "2.0.3"
   resolved "https://registry.yarnpkg.com/opencollective-postinstall/-/opencollective-postinstall-2.0.3.tgz#7a0fff978f6dbfa4d006238fbac98ed4198c3259"
   integrity sha512-8AV/sCtuzUeTo8gQK5qDZzARrulB3egtLzFgteqB2tcT4Mw7B8Kt7JcDHmltjz6FOAHsvTevk70gZEbhM4ZS9Q==
@@ -10687,26 +10687,27 @@ terser@^5.0.0, terser@^5.3.4:
     source-map "~0.8.0-beta.0"
     source-map-support "~0.5.20"
 
-tesseract.js-core@^2.2.0:
-  version "2.2.0"
-  resolved "https://registry.yarnpkg.com/tesseract.js-core/-/tesseract.js-core-2.2.0.tgz#6ef78051272a381969fac3e45a226e85022cffef"
-  integrity sha512-a8L+OJTbUipBsEDsJhDPlnLB0TY1MkTZqw5dqUwmiDSjUzwvU7HWLg/2+WDRulKUi4LE+7PnHlaBlW0k+V0U0w==
+tesseract.js-core@^4.0.4:
+  version "4.0.4"
+  resolved "https://registry.yarnpkg.com/tesseract.js-core/-/tesseract.js-core-4.0.4.tgz#6710744a02cb538a83fbb7aafc2e7be204f76eb3"
+  integrity sha512-MJ+vtktjAaT0681uPl6TDUPhbRbpD/S9emko5rtorgHRZpQo7R3BG7h+3pVHgn1KjfNf1bvnx4B7KxEK8YKqpg==
 
-tesseract.js@^2.1.1:
-  version "2.1.1"
-  resolved "https://registry.yarnpkg.com/tesseract.js/-/tesseract.js-2.1.1.tgz#5c50fc95542ce8d834cb952bfb75a8fc85f1441d"
-  integrity sha512-utg0A8UzT1KwBvZf+UMGmM8LU6izeol6yIem0Z44+7Qqd/YWgRVQ99XOG18ApTOXX48lGE++PDwlcZYkv0ygRQ==
+tesseract.js@^4.0.5:
+  version "4.0.5"
+  resolved "https://registry.yarnpkg.com/tesseract.js/-/tesseract.js-4.0.5.tgz#518cf1f1a5cf8d39baca274acc3cca0f95c5303c"
+  integrity sha512-YfKoHHJHTV40UNFKDLHimQ52R8mfkFOQt3gtNT6EMYggMUlIcb7xb2LkzpVxVZ5f5Sul9F7UAyd4553AbYNjtw==
   dependencies:
     bmp-js "^0.1.0"
-    file-type "^12.4.1"
-    idb-keyval "^3.2.0"
-    is-electron "^2.2.0"
+    file-type "^12.4.2"
+    idb-keyval "^6.2.0"
+    is-electron "^2.2.2"
     is-url "^1.2.4"
-    node-fetch "^2.6.0"
-    opencollective-postinstall "^2.0.2"
+    node-fetch "^2.6.9"
+    opencollective-postinstall "^2.0.3"
     regenerator-runtime "^0.13.3"
     resolve-url "^0.2.1"
-    tesseract.js-core "^2.2.0"
+    tesseract.js-core "^4.0.4"
+    wasm-feature-detect "^1.2.11"
     zlibjs "^0.3.1"
 
 test-exclude@^6.0.0:
@@ -11268,6 +11269,11 @@ warning@^4.0.1, warning@^4.0.3:
   integrity sha512-rpJyN222KWIvHJ/F53XSZv0Zl/accqHR8et1kpaMTD/fLCRxtV8iX8czMzY7sVZupTI3zcUTg8eycS2kNF9l6w==
   dependencies:
     loose-envify "^1.0.0"
+
+wasm-feature-detect@^1.2.11:
+  version "1.5.1"
+  resolved "https://registry.yarnpkg.com/wasm-feature-detect/-/wasm-feature-detect-1.5.1.tgz#0db57a7d7f8c26b743dde85386215ae2b135e78a"
+  integrity sha512-GHr23qmuehNXHY4902/hJ6EV5sUANIJC3R/yMfQ7hWDg3nfhlcJfnIL96R2ohpIwa62araN6aN4bLzzzq5GXkg==
 
 watchpack-chokidar2@^2.0.0:
   version "2.0.0"
