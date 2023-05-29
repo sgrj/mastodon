@@ -2190,10 +2190,10 @@ acorn@^8.8.0:
   resolved "https://registry.yarnpkg.com/acorn/-/acorn-8.8.2.tgz#1b2f25db02af965399b9776b0c2c391276d37c4a"
   integrity sha512-xjIYgE8HBrkpd/sJqOGNspf8uHG+NOHGOw6a/Urj8taM2EXfdNAH2oFcPeIFfsv3+kz/mJrS5VuMqbNLjCa2vw==
 
-activitypub-visualization@^1.2.0:
-  version "1.2.0"
-  resolved "https://registry.yarnpkg.com/activitypub-visualization/-/activitypub-visualization-1.2.0.tgz#93c7f5930c08f50e77aae09ea35d17f1f6ed3305"
-  integrity sha512-OP17Ynu7WDAc8KPSQXr0mn21vW6ozKsMHPcpGnICNW58sMuGj14//Lu10YxPxu/gn94z+mUSRCouilNmri6vKw==
+activitypub-visualization@^1.3.0:
+  version "1.3.0"
+  resolved "https://registry.yarnpkg.com/activitypub-visualization/-/activitypub-visualization-1.3.0.tgz#a6aba3031ecc96805d9e6923ed35758cdd3de1e6"
+  integrity sha512-OsqJkpK7mUiBxeJuLaXLYJDISnHiZTYSFO2N5pBHRRy0ia33BBG5yhfmEb6UhiwY4Yfi/1sqYLLC4aPaARta+A==
 
 agent-base@6:
   version "6.0.2"
@@ -11654,6 +11654,11 @@ workbox-core@6.5.4:
   resolved "https://registry.yarnpkg.com/workbox-core/-/workbox-core-6.5.4.tgz#df48bf44cd58bb1d1726c49b883fb1dffa24c9ba"
   integrity sha512-OXYb+m9wZm8GrORlV2vBbE5EC1FKu71GGp0H4rjmxmF4/HLbMCoTFws87M3dFwgpmg0v00K++PImpNQ6J5NQ6Q==
 
+workbox-core@6.6.0:
+  version "6.6.0"
+  resolved "https://registry.yarnpkg.com/workbox-core/-/workbox-core-6.6.0.tgz#d0f6929e338e0025d412291390e7462a5f879576"
+  integrity sha512-GDtFRF7Yg3DD859PMbPAYPeJyg5gJYXuBQAC+wyrWuuXgpfoOrIQIvFRZnQ7+czTIQjIr1DhLEGFzZanAT/3bQ==
+
 workbox-expiration@6.5.4, workbox-expiration@^6.5.4:
   version "6.5.4"
   resolved "https://registry.yarnpkg.com/workbox-expiration/-/workbox-expiration-6.5.4.tgz#501056f81e87e1d296c76570bb483ce5e29b4539"
@@ -11745,13 +11750,21 @@ workbox-webpack-plugin@^6.5.4:
     webpack-sources "^1.4.3"
     workbox-build "6.5.4"
 
-workbox-window@6.5.4, workbox-window@^6.5.4:
+workbox-window@6.5.4:
   version "6.5.4"
   resolved "https://registry.yarnpkg.com/workbox-window/-/workbox-window-6.5.4.tgz#d991bc0a94dff3c2dbb6b84558cff155ca878e91"
   integrity sha512-HnLZJDwYBE+hpG25AQBO8RUWBJRaCsI9ksQJEp3aCOFCaG5kqaToAYXFRAHxzRluM2cQbGzdQF5rjKPWPA1fug==
   dependencies:
     "@types/trusted-types" "^2.0.2"
     workbox-core "6.5.4"
+
+workbox-window@^6.6.0:
+  version "6.6.0"
+  resolved "https://registry.yarnpkg.com/workbox-window/-/workbox-window-6.6.0.tgz#a1b738340ea83323978ea9acc8f527c9240656d6"
+  integrity sha512-L4N9+vka17d16geaJXXRjENLFldvkWy7JyGxElRD0JvBxvFEd8LOhr+uXCcar/NzAmIBRv9EZ+M+Qr4mOoBITw==
+  dependencies:
+    "@types/trusted-types" "^2.0.2"
+    workbox-core "6.6.0"
 
 worker-farm@^1.7.0:
   version "1.7.0"
