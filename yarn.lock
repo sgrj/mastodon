@@ -1573,10 +1573,10 @@
   resolved "https://registry.yarnpkg.com/@popperjs/core/-/core-2.11.6.tgz#cee20bd55e68a1720bdab363ecf0c821ded4cd45"
   integrity sha512-50/17A98tWUfQ176raKiOGXuYpLyyVMkxxG6oylzL3BPOlA6ADGdK7EYunSa4I064xerltq9TGXs8HmOk5E+vw==
 
-"@rails/ujs@^6.1.7":
-  version "6.1.7"
-  resolved "https://registry.yarnpkg.com/@rails/ujs/-/ujs-6.1.7.tgz#b09dc5b2105dd267e8374c47e4490240451dc7f6"
-  integrity sha512-0e7WQ4LE/+LEfW2zfAw9ppsB6A8RmxbdAUPAF++UT80epY+7emuQDkKXmaK0a9lp6An50RvzezI0cIQjp1A58w==
+"@rails/ujs@^7.0.5":
+  version "7.0.5"
+  resolved "https://registry.yarnpkg.com/@rails/ujs/-/ujs-7.0.5.tgz#d35a71fe6ecd4ab88bbe4bc6c2f287c992c2de4c"
+  integrity sha512-/wQ6v4DGxhxflPWoLwGkOQoKbtIXx/LsVNKd8shRM+/HXxlVBEb+F5znN99TlxX8e/R3dN6anTPAqA+mfA5YtQ==
 
 "@restart/hooks@^0.4.7":
   version "0.4.7"
@@ -2190,10 +2190,10 @@ acorn@^8.8.0:
   resolved "https://registry.yarnpkg.com/acorn/-/acorn-8.8.2.tgz#1b2f25db02af965399b9776b0c2c391276d37c4a"
   integrity sha512-xjIYgE8HBrkpd/sJqOGNspf8uHG+NOHGOw6a/Urj8taM2EXfdNAH2oFcPeIFfsv3+kz/mJrS5VuMqbNLjCa2vw==
 
-activitypub-visualization@^1.2.0:
-  version "1.2.0"
-  resolved "https://registry.yarnpkg.com/activitypub-visualization/-/activitypub-visualization-1.2.0.tgz#93c7f5930c08f50e77aae09ea35d17f1f6ed3305"
-  integrity sha512-OP17Ynu7WDAc8KPSQXr0mn21vW6ozKsMHPcpGnICNW58sMuGj14//Lu10YxPxu/gn94z+mUSRCouilNmri6vKw==
+activitypub-visualization@^1.3.0:
+  version "1.3.0"
+  resolved "https://registry.yarnpkg.com/activitypub-visualization/-/activitypub-visualization-1.3.0.tgz#a6aba3031ecc96805d9e6923ed35758cdd3de1e6"
+  integrity sha512-OsqJkpK7mUiBxeJuLaXLYJDISnHiZTYSFO2N5pBHRRy0ia33BBG5yhfmEb6UhiwY4Yfi/1sqYLLC4aPaARta+A==
 
 agent-base@6:
   version "6.0.2"
