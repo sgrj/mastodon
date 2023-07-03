@@ -15,8 +15,8 @@ RSpec.describe ActivityLogAudienceHelper do
       Rails.configuration.x.web_domain = before
     end
 
-    describe 'for inbound events' do
-      it 'returns the author if the domain matches' do
+    describe 'for outbound events' do
+      it 'returns the sender if the domain matches' do
         Rails.configuration.x.web_domain = 'example.com'
         outbound_event = activity_log_event_fixture('outbound.json')
 
@@ -30,16 +30,21 @@ RSpec.describe ActivityLogAudienceHelper do
         expect(ActivityLogAudienceHelper.audience(outbound_event)).to eq []
       end
 
-      it 'returns nothing if the activity does not have an actor' do
+      it 'returns nothing if the activity does not have a sender' do
         Rails.configuration.x.web_domain = 'example.com'
-        outbound_event = activity_log_event_fixture('outbound.json')
-        outbound_event.data.delete('actor')
+        outbound_event_tmp = activity_log_event_fixture('outbound.json')
+        outbound_event = ActivityLogEvent.new(
+          outbound_event_tmp.type,
+          nil,
+          outbound_event_tmp.path,
+          outbound_event_tmp.data
+        )
 
         expect(ActivityLogAudienceHelper.audience(outbound_event)).to eq []
       end
     end
 
-    describe 'for outbound events' do
+    describe 'for inbound events' do
       it 'returns the inbox owner if it is sent to a personal inbox' do
         Rails.configuration.x.web_domain = 'example.com'
         inbound_event = activity_log_event_fixture('inbound-to-users-inbox.json')
@@ -82,6 +87,13 @@ RSpec.describe ActivityLogAudienceHelper do
           'first-to',
           'second-to'
         ])
+      end
+
+      it 'handles null in array correctly' do
+        Rails.configuration.x.web_domain = 'example.com'
+        inbound_event = activity_log_event_fixture('inbound-with-null-in-array.json')
+
+        expect(ActivityLogAudienceHelper.audience(inbound_event)).to match_array([])
       end
 
     end

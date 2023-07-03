@@ -37,22 +37,20 @@ class ActivityLogAudienceHelper
     if string_or_array.nil?
       []
     elsif string_or_array.is_a?(String)
-      self.actors([string_or_array])
-    else
-      string_or_array.map do |string|
-        if match = string.match(Regexp.new("https://#{domain}/users/([^/]*)"))
-          match.captures[0]
-        elsif string.ends_with?("/followers")
-          Account
-            .joins(
-              "JOIN follows ON follows.account_id = accounts.id
+      if match = string_or_array.match(Regexp.new("https://#{domain}/users/([^/]*)"))
+        [match.captures[0]]
+      elsif string_or_array.ends_with?("/followers")
+        Account
+          .joins(
+            "JOIN follows ON follows.account_id = accounts.id
                 JOIN accounts AS followed ON follows.target_account_id = followed.id
-                WHERE followed.followers_url = '#{string}'")
-            .map { |account| account.username }
-        else
-          nil
-        end
-      end.flatten.compact
+                WHERE followed.followers_url = '#{string_or_array}'")
+          .map { |account| account.username }
+      else
+        []
+      end
+    else
+      string_or_array.flat_map { |inner| self.actors(inner) }
     end
   end
 end

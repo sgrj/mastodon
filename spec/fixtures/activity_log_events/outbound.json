@@ -7,7 +7,7 @@
     "@context": "https://www.w3.org/ns/activitystreams",
     "id": "https://example.com/a5f25e0a-98d6-4e5c-baad-65318cd4d67d",
     "type": "Follow",
-    "actor": "https://example.com/users/alice",
+    "actor": "https://example.com/users/eve",
     "object": "https://other.org/users/bob"
   }
 }

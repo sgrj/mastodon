@@ -1,0 +1,22 @@
+{
+  "data" : {
+    "@context" : [
+      "https://app.wafrn.net/contexts/litepub-0.1.jsonld"
+      ],
+      "actor" : "https://app.wafrn.net/fediverse/blog/spikesburstingthroughgrid",
+      "cc" : [
+        null
+      ],
+      "id" : "https://app.wafrn.net/fediverse/likes/c425f754-e5fe-414c-b385-8a7d14542579/88795044-dbe9-40de-ae28-ba8dbb3b6800",
+      "object" : null,
+      "to" : [
+        "https://www.w3.org/ns/activitystreams#Public",
+        "https://app.wafrn.net/fediverse/blog/spikesburstingthroughgrid/followers"
+      ],
+      "type" : "Like"
+  },
+  "path" : "https://example.com/inbox",
+  "sender" : "https://app.wafrn.net/fediverse/blog/spikesburstingthroughgrid",
+  "timestamp" : "2023-07-03T04:00:10Z",
+  "type" : "inbound"
+}
