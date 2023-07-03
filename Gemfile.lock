@@ -594,7 +594,7 @@ GEM
       activesupport (>= 4.2.0)
       rack (>= 1.1)
       rubocop (>= 1.7.0, < 2.0)
-    ruby-progressbar (1.11.0)
+    ruby-progressbar (1.13.0)
     ruby-saml (1.13.0)
       nokogiri (>= 1.10.5)
       rexml
@@ -833,7 +833,7 @@ DEPENDENCIES
   rspec_junit_formatter (~> 0.6)
   rubocop (~> 1.30)
   rubocop-rails (~> 2.15)
-  ruby-progressbar (~> 1.11)
+  ruby-progressbar (~> 1.13)
   sanitize (~> 6.0)
   scenic (~> 1.6)
   sidekiq (~> 6.5)
