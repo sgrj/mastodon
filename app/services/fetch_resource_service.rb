@@ -43,7 +43,9 @@ class FetchResourceService < BaseService
     @response_code = response.code
     return nil if response.code != 200
 
-    if ['application/activity+json', 'application/ld+json'].include?(response.mime_type)
+    # Allow application/json to circumvent a bug in Lemmy < 1.8.1-rc.4
+    # https://github.com/LemmyNet/lemmy/commit/3d7d6b253086f1ac78e6dd459bc4c904df45dbfa
+    if ['application/activity+json', 'application/ld+json', 'application/json'].include?(response.mime_type)
       body = response.body_with_limit
       json = body_to_json(body)
 
