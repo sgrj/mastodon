@@ -17,6 +17,53 @@ const mapStateToProps = (state) => {
   };
 };
 
+
+function Content({ logs, dispatch }) {
+
+  const darkMode = !(document.body && document.body.classList.contains('theme-mastodon-light'));
+
+  // hijack the toggleHidden shortcut to copy the logs to clipbaord
+  const handlers = {
+    toggleHidden: () => navigator.clipboard.writeText(JSON.stringify(logs, null, 2)),
+  };
+
+  if (logs.length > 0) {
+    return ( <HotKeys handlers={handlers}>
+      <div className={`${darkMode ? 'dark' : ''}`} style={{ height: '100%' }}>
+        <ActivityPubVisualization
+          logs={logs}
+          clickableLinks
+          onLinkClick={(url) => {
+            dispatch(setExplorerUrl(url));
+            this.context.router.history.push('/activitypub_explorer');
+          }}
+          showExplorerLink
+          onExplorerLinkClick={(data) => {
+            dispatch(setExplorerData(data));
+            this.context.router.history.push('/activitypub_explorer');
+          }}
+        />
+      </div>
+    </HotKeys>);
+  } else {
+    return (<div className='empty-column-indicator'>
+      <FormattedMessage
+        id='empty_column.activity_log'
+        defaultMessage='The Activity Log is empty. Interact with accounts on other instances to trigger activities. You can find more information on my {blog}.'
+        values={{
+          blog: <a className='blog-link' href='https://seb.jambor.dev/posts/activitypub-academy/'>blog</a>,
+        }}
+      />
+    </div>);
+  }
+}
+
+Content.propTypes = {
+  dispatch: PropTypes.func.isRequired,
+  logs: PropTypes.array,
+};
+
+
 export default @connect(mapStateToProps)
 class ActivityLog extends ImmutablePureComponent {
 
@@ -31,51 +78,14 @@ class ActivityLog extends ImmutablePureComponent {
 
   handleHeaderClick = () => {
     this.column.scrollTop();
-  }
+  };
 
   setRef = c => {
     this.column = c;
-  }
+  };
 
   render() {
-
     const { dispatch, logs, multiColumn } = this.props;
-
-    const darkMode = !(document.body && document.body.classList.contains('theme-mastodon-light'));
-
-    // hijack the toggleHidden shortcut to copy the logs to clipbaord
-    const handlers = {
-      toggleHidden: () => navigator.clipboard.writeText(JSON.stringify(logs, null, 2)),
-    };
-
-    const Content = () => {
-      if (logs.length > 0) {
-        return ( <HotKeys handlers={handlers}>
-          <div className={`${darkMode ? 'dark' : ''}`} style={{height: '100%'}}>
-            <ActivityPubVisualization
-              logs={logs}
-              clickableLinks
-              onLinkClick={(url) => {
-                dispatch(setExplorerUrl(url));
-                this.context.router.history.push('/activitypub_explorer');
-              }}
-              showExplorerLink
-              onExplorerLinkClick={(data) => {
-                dispatch(setExplorerData(data));
-                this.context.router.history.push('/activitypub_explorer');
-              }}
-            />
-          </div>
-        </HotKeys>) } else {
-          return (<div className='empty-column-indicator'>
-            <FormattedMessage id='empty_column.activity_log' defaultMessage='The Activity Log is empty. Interact with accounts on other instances to trigger activities. You can find more information on my {blog}.'
-              values={{
-                blog: <a className='blog-link' href='https://seb.jambor.dev/posts/activitypub-academy/'>blog</a>,
-              }}
-            />
-          </div>)
-        }
-    }
 
     return (
       <Column bindToDocument={!multiColumn} ref={this.setRef} label='Activity Log'>
@@ -104,7 +114,10 @@ class ActivityLog extends ImmutablePureComponent {
           </p>
         </DismissableBanner>
 
-        <Content />
+        <Content
+          logs={logs}
+          dispatch={dispatch}
+        />
       </Column>
     );
   }
