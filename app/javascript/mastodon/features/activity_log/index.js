@@ -18,7 +18,7 @@ const mapStateToProps = (state) => {
 };
 
 
-function Content({ logs, dispatch }) {
+function Content({ logs, dispatch, router }) {
 
   const darkMode = !(document.body && document.body.classList.contains('theme-mastodon-light'));
 
@@ -35,12 +35,12 @@ function Content({ logs, dispatch }) {
           clickableLinks
           onLinkClick={(url) => {
             dispatch(setExplorerUrl(url));
-            this.context.router.history.push('/activitypub_explorer');
+            router.history.push('/activitypub_explorer');
           }}
           showExplorerLink
           onExplorerLinkClick={(data) => {
             dispatch(setExplorerData(data));
-            this.context.router.history.push('/activitypub_explorer');
+            router.history.push('/activitypub_explorer');
           }}
         />
       </div>
@@ -61,6 +61,7 @@ function Content({ logs, dispatch }) {
 Content.propTypes = {
   dispatch: PropTypes.func.isRequired,
   logs: PropTypes.array,
+  router: PropTypes.object,
 };
 
 
@@ -117,6 +118,7 @@ class ActivityLog extends ImmutablePureComponent {
         <Content
           logs={logs}
           dispatch={dispatch}
+          router={this.context.router}
         />
       </Column>
     );
