@@ -32,6 +32,8 @@ class Scheduler::OldAccountCleanupScheduler
       .where("username <> 'admin'")
       # don't delete crepels
       .where("username <> 'crepels'")
+      # don't delete alice
+      .where("username <> 'alice'")
       .where("created_at < ?", 1.day.ago)
       .order(created_at: :asc)
       .limit(MAX_DELETIONS_PER_JOB)
