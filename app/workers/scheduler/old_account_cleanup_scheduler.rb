@@ -28,17 +28,13 @@ class Scheduler::OldAccountCleanupScheduler
       .where("domain IS NULL")
       # id -99 is the instance actor
       .where("id <> -99")
-      # don't delete admin
-      .where("username <> 'admin'")
-      # don't delete crepels
-      .where("username <> 'crepels'")
-      # don't delete alice
-      .where("username <> 'alice'")
+      # only delete accounts whose username contains underscores (those are auto-generated)
+      .where("username LIKE '%\\_%'")
       .where("created_at < ?", 1.day.ago)
       .order(created_at: :asc)
       .limit(MAX_DELETIONS_PER_JOB)
       .each do |account|
-        AccountDeletionWorker.perform_async(account.id, { :reserve_username => false })
+        AccountDeletionWorker.perform_async(account.id, { 'reserve_username' => false })
       end
   end
 end
