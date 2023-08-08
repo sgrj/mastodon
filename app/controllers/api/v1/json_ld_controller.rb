@@ -19,7 +19,7 @@ class Api::V1::JsonLdController < Api::BaseController
         conn = Faraday::Connection.new
         conn.options.timeout = 5
 
-        api_response = conn.get(url, nil, {'Accept' => 'application/ld+json; profile="https://www.w3.org/ns/activitystreams"'})
+        api_response = conn.get(url, nil, {'Accept' => 'application/ld+json; profile="https://www.w3.org/ns/activitystreams", application/jrd+json'})
 
         max_redirects = 5
         while api_response.status == 301 || api_response.status == 302 and max_redirects > 0 do
