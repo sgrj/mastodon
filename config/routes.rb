@@ -545,6 +545,8 @@ Rails.application.routes.draw do
 
       resource :activity_log, only: [:show], controller: 'activity_log'
 
+      resource :activity, only: [:create], controller: 'activity'
+
       get '/json_ld', to: 'json_ld#show'
 
       resource :instance, only: [:show] do
