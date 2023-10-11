@@ -43,7 +43,11 @@ export function ActivityLog () {
 }
 
 export function ActivityPubExplorer () {
-  return import(/* webpackChunkName: "features/activity_log" */'../../activitypub_explorer');
+  return import(/* webpackChunkName: "features/activitypub_explorer" */'../../activitypub_explorer');
+}
+
+export function ActivityWorkshop () {
+  return import(/* webpackChunkName: "features/activity_workshop" */'../../activity_workshop');
 }
 
 export function Status () {

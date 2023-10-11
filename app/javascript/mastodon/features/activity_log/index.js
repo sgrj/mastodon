@@ -7,6 +7,7 @@ import Column from 'mastodon/components/column';
 import ColumnHeader from 'mastodon/components/column_header';
 import { HotKeys } from 'react-hotkeys';
 import { setExplorerData, setExplorerUrl } from 'mastodon/actions/activitypub_explorer';
+import { setWorkshopActivity, setWorkshopInboxUrl } from 'mastodon/actions/activity_workshop';
 import DismissableBanner from 'mastodon/components/dismissable_banner';
 
 import { ActivityPubVisualization } from 'activitypub-visualization';
@@ -41,6 +42,12 @@ function Content({ logs, dispatch, router }) {
           onExplorerLinkClick={(data) => {
             dispatch(setExplorerData(data));
             router.history.push('/activitypub_explorer');
+          }}
+          showWorkshopLink
+          onWorkshopLinkClick={(event) => {
+            dispatch(setWorkshopActivity(JSON.stringify(event.data, null, 2)));
+            dispatch(setWorkshopInboxUrl(event.path));
+            router.history.push('/activity_workshop');
           }}
         />
       </div>

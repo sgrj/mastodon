@@ -26,6 +26,7 @@ Rails.application.routes.draw do
     /follow_requests
     /activity_log
     /activitypub_explorer
+    /activity_workshop
     /blocks
     /domain_blocks
     /mutes
