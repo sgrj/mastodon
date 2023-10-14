@@ -15,6 +15,7 @@ const mapStateToProps = (state) => {
   return {
     activity: state.getIn(['activity_workshop', 'activity']),
     inboxUrl: state.getIn(['activity_workshop', 'inbox_url']),
+    accessToken: state.getIn(['meta', 'access_token']),
   };
 };
 
@@ -36,14 +37,14 @@ class ActivityWorkshop extends ImmutablePureComponent {
 
   render() {
 
-    const { dispatch, activity, inboxUrl, multiColumn } = this.props;
+    const { dispatch, activity, inboxUrl, accessToken, multiColumn } = this.props;
 
     const darkMode = !(document.body && document.body.classList.contains('theme-mastodon-light'));
 
     return (
       <Column bindToDocument={!multiColumn} ref={this.setRef} label='Activity Workshop'>
         <ColumnHeader
-          icon='wpexplorer'
+          icon='wrench'
           title='Activity Workshop'
           onClick={this.handleHeaderClick}
           multiColumn={multiColumn}
@@ -70,7 +71,7 @@ class ActivityWorkshop extends ImmutablePureComponent {
             onSubmit={async () =>
               fetch('/api/v1/activity', {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
+                headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${accessToken}` },
                 body: JSON.stringify({ inbox_url: inboxUrl, activity: JSON.parse(activity) }),
               })
             }

@@ -1,7 +1,9 @@
 # frozen_string_literal: true
 
 class Api::V1::ActivityController < Api::BaseController
-  before_action :authenticate_user!
+  include ActionController::Live
+
+  before_action :require_user!
 
   def create
     ActivityPub::DeliveryWorker.perform_async(Oj.dump(activity_params[:activity]), current_account.id, activity_params[:inbox_url])
