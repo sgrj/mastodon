@@ -79,6 +79,24 @@ RSpec.describe ActivityLogAudienceHelper do
         ])
       end
 
+      it 'returns owner of an object if sent to public inbox' do
+        Rails.configuration.x.web_domain = 'example.com'
+        inbound_event = activity_log_event_fixture('inbound-with-object-owner.json')
+
+        expect(ActivityLogAudienceHelper.audience(inbound_event)).to match_array([
+          'owner',
+        ])
+      end
+
+      it 'returns owner of an object if sent to public inbox, even if object is nested' do
+        Rails.configuration.x.web_domain = 'example.com'
+        inbound_event = activity_log_event_fixture('inbound-with-nested-object-owner.json')
+
+        expect(ActivityLogAudienceHelper.audience(inbound_event)).to match_array([
+          'owner',
+        ])
+      end
+
       it 'removes duplicates from audience' do
         Rails.configuration.x.web_domain = 'example.com'
         inbound_event = activity_log_event_fixture('inbound-with-duplicate-recipients.json')
