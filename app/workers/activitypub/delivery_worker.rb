@@ -8,7 +8,7 @@ class ActivityPub::DeliveryWorker
   STOPLIGHT_FAILURE_THRESHOLD = 10
   STOPLIGHT_COOLDOWN = 60
 
-  sidekiq_options queue: 'push', retry: 16, dead: false
+  sidekiq_options queue: 'push', retry: 0, dead: false
 
   # Unfortunately, we cannot control Sidekiq's jitter, so add our own
   sidekiq_retry_in do |count|
@@ -35,14 +35,15 @@ class ActivityPub::DeliveryWorker
     @inbox_url      = inbox_url
     @host           = Addressable::URI.parse(inbox_url).normalized_site
     @performed      = false
-
-    event = ActivityLogEvent.new('outbound', "https://#{Rails.configuration.x.web_domain}/users/#{@source_account.username}", inbox_url, Oj.load(json, mode: :strict))
-
-    @activity_log_publisher.publish(event)
-
+    @failure        = nil
 
     perform_request
+  rescue => e
+    @failure = e.message
   ensure
+    event = ActivityLogEvent.new('outbound', "https://#{Rails.configuration.x.web_domain}/users/#{@source_account.username}", inbox_url, Oj.load(json, mode: :strict), @failure)
+    @activity_log_publisher.publish(event)
+
     if @inbox_url.present?
       if @performed
         failure_tracker.track_success!
@@ -70,6 +71,9 @@ class ActivityPub::DeliveryWorker
     light = Stoplight(@inbox_url) do
       request_pool.with(@host) do |http_client|
         build_request(http_client).perform do |response|
+          if !response_successful?(response)
+            @failure = "#{@inbox_url} responded with status #{response.status}"
+          end
           raise Mastodon::UnexpectedResponseError, response unless response_successful?(response) || response_error_unsalvageable?(response)
 
           @performed = true
