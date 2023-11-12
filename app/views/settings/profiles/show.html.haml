@@ -14,7 +14,7 @@
 
     .fields-row__column.fields-group.fields-row__column-6
       .fields-group
-        = f.input :actor_type, collection: ['foo', 'Application', 'Organization', 'Service', 'Group', 'Person'], wrapper: :with_label, include_blank: false, label_method: lambda { |type| type }, selected: @account.actor_type, hint: false
+        = f.input :actor_type, collection: ['Application', 'Organization', 'Service', 'Group', 'Person'], wrapper: :with_label, include_blank: false, label_method: lambda { |type| type }, selected: @account.actor_type, hint: false
 
 
   .fields-row
