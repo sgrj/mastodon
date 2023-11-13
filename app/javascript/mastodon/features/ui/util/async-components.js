@@ -50,6 +50,10 @@ export function ActivityWorkshop () {
   return import(/* webpackChunkName: "features/activity_workshop" */'../../activity_workshop');
 }
 
+export function WebFingerForge () {
+  return import(/* webpackChunkName: "features/web_finger_forge" */'../../web_finger_forge');
+}
+
 export function Status () {
   return import(/* webpackChunkName: "features/status" */'../../status');
 }
