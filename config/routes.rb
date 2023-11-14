@@ -549,6 +549,8 @@ Rails.application.routes.draw do
 
       resource :activity, only: [:create], controller: 'activity'
 
+      resource :webfinger, only: [:show, :create], controller: 'webfinger'
+
       get '/json_ld', to: 'json_ld#show'
 
       resource :instance, only: [:show] do
