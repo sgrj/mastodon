@@ -6,7 +6,6 @@ import PropTypes from 'prop-types';
 import Column from 'mastodon/components/column';
 import ColumnHeader from 'mastodon/components/column_header';
 import DismissableBanner from 'mastodon/components/dismissable_banner';
-import { me, domain } from 'mastodon/initial_state';
 
 import { WebFingerForge as Forge } from 'activitypub-visualization';
 
@@ -14,7 +13,6 @@ import { WebFingerForge as Forge } from 'activitypub-visualization';
 const mapStateToProps = (state) => {
   return {
     accessToken: state.getIn(['meta', 'access_token']),
-    account: state.getIn(['accounts', me]),
   };
 };
 
@@ -35,7 +33,7 @@ class WebFingerForge extends ImmutablePureComponent {
 
   render() {
 
-    const { multiColumn, accessToken, account } = this.props;
+    const { multiColumn, accessToken } = this.props;
 
     const darkMode = !(document.body && document.body.classList.contains('theme-mastodon-light'));
 
@@ -63,8 +61,6 @@ class WebFingerForge extends ImmutablePureComponent {
         <div className={`h-full ${darkMode ? 'dark' : ''}`}>
           <Forge
             loadData={async () => {
-
-              // const response = await fetch(`/.well-known/webfinger?resource=acct:${account.get('acct')}%40${domain}`);
               const response = await fetch('/api/v1/webfinger', {
                 headers: { 'Accept': 'application/json', 'Authorization': `Bearer ${accessToken}` },
               });
