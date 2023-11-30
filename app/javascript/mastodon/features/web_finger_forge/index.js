@@ -50,9 +50,9 @@ class WebFingerForge extends ImmutablePureComponent {
           <p>
             <FormattedMessage
               id='dismissable_banner.web_finger_forge_information'
-              defaultMessage='The WebFinger Forge allows you to control the data that is returned when the web-finger endpoint for your actor is called. You can find more information on my {blog}.'
+              defaultMessage='The WebFinger Forge allows you to control the data that is returned when the WebFinger endpoint for your actor is called. You can find more information on my {blog}.'
               values={{
-                blog: <a className='blog-link' href='https://seb.jambor.dev/posts/activitypub-academy/'>blog</a>,
+                blog: <a className='blog-link' href='https://seb.jambor.dev/posts/new-features-for-activitypub-academy/'>blog</a>,
               }}
             />
           </p>

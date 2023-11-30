@@ -56,7 +56,7 @@ class ActivityWorkshop extends ImmutablePureComponent {
               id='dismissable_banner.activity_workshop_information'
               defaultMessage='The Activity Workshop allows you to hand-craft your own activities and send them to inboxes of other actors. You can find more information on my {blog}.'
               values={{
-                blog: <a className='blog-link' href='https://seb.jambor.dev/posts/activitypub-academy/'>blog</a>,
+                blog: <a className='blog-link' href='https://seb.jambor.dev/posts/new-features-for-activitypub-academy/'>blog</a>,
               }}
             />
           </p>
