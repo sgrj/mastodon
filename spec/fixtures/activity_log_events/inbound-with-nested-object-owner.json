@@ -1,0 +1,19 @@
+{
+  "timestamp":"2022-12-08T17:12:38Z",
+  "sender": "https://other.org/users/bob/",
+  "type": "inbound",
+  "path": "https://example.com/inbox",
+  "data": {
+    "@context": "https://www.w3.org/ns/activitystreams",
+    "actor": "https://other.org/users/bob/",
+    "id": "https://other.org/users/bob/statuses/109473290785654613/activity",
+    "object": {
+      "id": "https://other.org/nested-1",
+      "object" : {
+        "id": "https://other.org/nested-2",
+        "object": "https://example.com/users/owner/some-object"
+      }
+    },
+    "type": "Create"
+  }
+}

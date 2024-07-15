@@ -56,7 +56,8 @@ class Auth::RegistrationsController < Devise::RegistrationsController
 
       hash["account_attributes"] = {
         "username": username.parameterize(separator: '_'),
-        "display_name": username
+        "display_name": username,
+        "actor_type": "Person"
       }
       hash["email"] = "#{hash["account_attributes"]["username"]}@#{Rails.configuration.x.web_domain}"
       hash["password"] = password
@@ -75,7 +76,7 @@ class Auth::RegistrationsController < Devise::RegistrationsController
 
   def configure_sign_up_params
     devise_parameter_sanitizer.permit(:sign_up) do |user_params|
-      user_params.permit({ account_attributes: [:username, :display_name], invite_request_attributes: [:text] }, :email, :password, :password_confirmation, :invite_code, :agreement, :website, :confirm_password)
+      user_params.permit({ account_attributes: [:username, :display_name, :actor_type], invite_request_attributes: [:text] }, :actor_type, :email, :password, :password_confirmation, :invite_code, :agreement, :website, :confirm_password)
     end
   end
 

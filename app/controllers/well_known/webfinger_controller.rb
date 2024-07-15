@@ -11,8 +11,12 @@ module WellKnown
     rescue_from ActionController::ParameterMissing, WebfingerResource::InvalidRequest, with: :bad_request
 
     def show
-      expires_in 3.days, public: true
-      render json: @account, serializer: WebfingerSerializer, content_type: 'application/jrd+json'
+      override = WebFingerOverride.find_by(account_id: @account.id)
+      if (override.nil?)
+        render json: @account, serializer: WebfingerSerializer, content_type: 'application/jrd+json'
+      else
+        render json: override.value, content_type: 'application/jrd+json'
+      end
     end
 
     private
@@ -20,7 +24,7 @@ module WellKnown
     def set_account
       username = username_from_resource
       @account = begin
-        if username == Rails.configuration.x.local_domain
+        if username == Rails.configuration.x.local_domain || username == Rails.configuration.x.web_domain
           Account.representative
         else
           Account.find_local!(username)

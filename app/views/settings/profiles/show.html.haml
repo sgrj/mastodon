@@ -12,6 +12,11 @@
       = f.input :display_name, wrapper: :with_label, input_html: { maxlength: 30, data: { default: @account.username } }, hint: false
       = f.input :note, wrapper: :with_label, input_html: { maxlength: 500 }, hint: false
 
+    .fields-row__column.fields-group.fields-row__column-6
+      .fields-group
+        = f.input :actor_type, collection: ['Application', 'Organization', 'Service', 'Group', 'Person'], wrapper: :with_label, include_blank: false, label_method: lambda { |type| type }, selected: @account.actor_type, hint: false
+
+
   .fields-row
     .fields-row__column.fields-row__column-6
       = render 'application/card', account: @account
@@ -25,9 +30,6 @@
 
   .fields-group
     = f.input :locked, as: :boolean, wrapper: :with_label, hint: t('simple_form.hints.defaults.locked')
-
-  .fields-group
-    = f.input :bot, as: :boolean, wrapper: :with_label, hint: t('simple_form.hints.defaults.bot')
 
   .fields-group
     = f.input :discoverable, as: :boolean, wrapper: :with_label, hint: t('simple_form.hints.defaults.discoverable'), recommended: true

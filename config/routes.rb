@@ -1,6 +1,6 @@
 # frozen_string_literal: true
 
-require 'sidekiq_unique_jobs/web'
+require 'sidekiq_unique_jobs/web' if ENV['ENABLE_SIDEKIQ_UNIQUE_JOBS_UI'] == true
 require 'sidekiq-scheduler/web'
 
 Rails.application.routes.draw do
@@ -26,6 +26,8 @@ Rails.application.routes.draw do
     /follow_requests
     /activity_log
     /activitypub_explorer
+    /activity_workshop
+    /web_finger_forge
     /blocks
     /domain_blocks
     /mutes
@@ -128,7 +130,7 @@ Rails.application.routes.draw do
     get '/@:account_username/:id/embed', to: 'statuses#embed', as: :embed_short_account_status
   end
 
-  get '/@:username_with_domain/(*any)', to: 'home#index', constraints: { username_with_domain: /([^\/])+?/ }, format: false
+  get '/@:username_with_domain/(*any)', to: 'home#index', constraints: { username_with_domain: %r{([^/])+?} }, as: :account_with_domain, format: false
   get '/settings', to: redirect('/settings/profile')
 
   namespace :settings do
@@ -294,7 +296,7 @@ Rails.application.routes.draw do
       end
     end
 
-    resources :instances, only: [:index, :show, :destroy], constraints: { id: /[^\/]+/ } do
+    resources :instances, only: [:index, :show, :destroy], constraints: { id: /[^\/]+/ }, format: 'html' do
       member do
         post :clear_delivery_errors
         post :restart_delivery
@@ -544,6 +546,10 @@ Rails.application.routes.draw do
       end
 
       resource :activity_log, only: [:show], controller: 'activity_log'
+
+      resource :activity, only: [:create], controller: 'activity'
+
+      resource :webfinger, only: [:show, :create], controller: 'webfinger'
 
       get '/json_ld', to: 'json_ld#show'
 

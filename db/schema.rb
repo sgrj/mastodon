@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema.define(version: 2022_12_06_114142) do
+ActiveRecord::Schema.define(version: 2023_11_12_191557) do
 
   # These are extensions that must be enabled in order to support this database
   enable_extension "plpgsql"
@@ -1068,6 +1068,14 @@ ActiveRecord::Schema.define(version: 2022_12_06_114142) do
     t.index ["role_id"], name: "index_users_on_role_id", where: "(role_id IS NOT NULL)"
   end
 
+  create_table "web_finger_overrides", force: :cascade do |t|
+    t.text "value"
+    t.bigint "account_id", null: false
+    t.datetime "created_at", precision: 6, null: false
+    t.datetime "updated_at", precision: 6, null: false
+    t.index ["account_id"], name: "index_web_finger_overrides_on_account_id"
+  end
+
   create_table "web_push_subscriptions", force: :cascade do |t|
     t.string "endpoint", null: false
     t.string "key_p256dh", null: false
@@ -1225,6 +1233,7 @@ ActiveRecord::Schema.define(version: 2022_12_06_114142) do
   add_foreign_key "users", "invites", on_delete: :nullify
   add_foreign_key "users", "oauth_applications", column: "created_by_application_id", on_delete: :nullify
   add_foreign_key "users", "user_roles", column: "role_id", on_delete: :nullify
+  add_foreign_key "web_finger_overrides", "accounts"
   add_foreign_key "web_push_subscriptions", "oauth_access_tokens", column: "access_token_id", on_delete: :cascade
   add_foreign_key "web_push_subscriptions", "users", on_delete: :cascade
   add_foreign_key "web_settings", "users", name: "fk_11910667b2", on_delete: :cascade

@@ -51,6 +51,8 @@ import {
   Lists,
   ActivityLog,
   ActivityPubExplorer,
+  ActivityWorkshop,
+  WebFingerForge,
   Directory,
   Explore,
   FollowRecommendations,
@@ -110,6 +112,8 @@ const keyMap = {
   goToRequests: 'g r',
   goToActivityLog: 'g a',
   goToActivityPubExplorer: 'g e',
+  goToActivityWorkshop: 'g w',
+  goToWebFingerForge: 'g o',
   toggleHidden: 'x',
   toggleSensitive: 'h',
   openMedia: 'e',
@@ -222,6 +226,8 @@ class SwitchingColumnsArea extends React.PureComponent {
           <WrappedRoute path='/lists' component={Lists} content={children} />
           <WrappedRoute path='/activity_log' component={ActivityLog} content={children} />
           <WrappedRoute path='/activitypub_explorer' component={ActivityPubExplorer} content={children} />
+          <WrappedRoute path='/activity_workshop' component={ActivityWorkshop} content={children} />
+          <WrappedRoute path='/web_finger_forge' component={WebFingerForge} content={children} />
 
           <Route component={BundleColumnError} />
         </WrappedSwitch>
@@ -495,11 +501,19 @@ class UI extends React.PureComponent {
 
   handleHotkeyGoToActivityLog = () => {
     this.context.router.history.push('/activity_log');
-  }
+  };
 
   handleHotkeyGoToActivityPubExplorer = () => {
     this.context.router.history.push('/activitypub_explorer');
-  }
+  };
+
+  handleHotkeyGoToActivityWorkshop = () => {
+    this.context.router.history.push('/activity_workshop');
+  };
+
+  handleHotkeyGoToWebFingerForge = () => {
+    this.context.router.history.push('/web_finger_forge');
+  };
 
   handleHotkeyGoToNotifications = () => {
     this.context.router.history.push('/notifications');
@@ -560,6 +574,8 @@ class UI extends React.PureComponent {
       goToHome: this.handleHotkeyGoToHome,
       goToActivityLog: this.handleHotkeyGoToActivityLog,
       goToActivityPubExplorer: this.handleHotkeyGoToActivityPubExplorer,
+      goToActivityWorkshop: this.handleHotkeyGoToActivityWorkshop,
+      goToWebFingerForge: this.handleHotkeyGoToWebFingerForge,
       goToNotifications: this.handleHotkeyGoToNotifications,
       goToLocal: this.handleHotkeyGoToLocal,
       goToFederated: this.handleHotkeyGoToFederated,

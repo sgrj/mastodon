@@ -11,6 +11,7 @@ import accounts from './accounts';
 import accounts_counters from './accounts_counters';
 import activity_log from './activity_log';
 import activitypub_explorer from './activitypub_explorer';
+import activity_workshop from './activity_workshop';
 import statuses from './statuses';
 import relationships from './relationships';
 import settings from './settings';
@@ -48,6 +49,7 @@ const reducers = {
   announcements,
   activity_log,
   activitypub_explorer,
+  activity_workshop,
   dropdown_menu,
   timelines,
   meta,

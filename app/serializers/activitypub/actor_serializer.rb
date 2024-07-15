@@ -47,15 +47,7 @@ class ActivityPub::ActorSerializer < ActivityPub::Serializer
   end
 
   def type
-    if object.instance_actor?
-      'Application'
-    elsif object.bot?
-      'Service'
-    elsif object.group?
-      'Group'
-    else
-      'Person'
-    end
+    object.actor_type
   end
 
   def following

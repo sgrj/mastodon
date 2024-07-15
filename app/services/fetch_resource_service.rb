@@ -43,13 +43,19 @@ class FetchResourceService < BaseService
     @response_code = response.code
     return nil if response.code != 200
 
-    # Allow application/json to circumvent a bug in Lemmy < 1.8.1-rc.4
-    # https://github.com/LemmyNet/lemmy/commit/3d7d6b253086f1ac78e6dd459bc4c904df45dbfa
-    if ['application/activity+json', 'application/ld+json', 'application/json'].include?(response.mime_type)
+    if valid_activitypub_content_type?(response)
       body = response.body_with_limit
       json = body_to_json(body)
 
-      [json['id'], { prefetched_body: body, id: true }] if supported_context?(json) && (equals_or_includes_any?(json['type'], ActivityPub::FetchRemoteActorService::SUPPORTED_TYPES) || expected_type?(json))
+      return unless supported_context?(json) && (equals_or_includes_any?(json['type'], ActivityPub::FetchRemoteActorService::SUPPORTED_TYPES) || expected_type?(json))
+
+      if json['id'] != @url
+        return if terminal
+
+        return process(json['id'], terminal: true)
+      end
+
+      [@url, { prefetched_body: body }]
     elsif !terminal
       link_header = response['Link'] && parse_link_header(response)
 
