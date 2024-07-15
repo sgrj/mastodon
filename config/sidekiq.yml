@@ -1,4 +1,4 @@
----
+--
 :concurrency: <%= ENV.fetch('SIDEKIQ_CONCURRENCY', 5) %>
 :queues:
   - [default, 8]
@@ -61,4 +61,8 @@
   old_account_cleanup_scheduler:
     interval: 1 minute
     class: Scheduler::OldAccountCleanupScheduler
+    queue: scheduler
+  auto_close_registrations_scheduler:
+    interval: 1 hour
+    class: Scheduler::AutoCloseRegistrationsScheduler
     queue: scheduler

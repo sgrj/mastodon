@@ -160,3 +160,4 @@ gem 'xorcist', '~> 1.1'
 gem 'cocoon', '~> 1.2'
 
 gem 'random_name_generator'
+gem 'mail', '~> 2.8'
