@@ -44,6 +44,27 @@ class Api::V1::JsonLdController < Api::BaseController
     tmp_headers.merge(additional_headers).except(REQUEST_TARGET)
   end
 
+  def get_redirect_location(api_response, host)
+    location = if [301, 302].include?(api_response.status)
+                 api_response.headers['location']
+               elsif api_response.status == 200
+                 # for JSON-LD, the actual document might be at an alternate location specified by
+                 # the link header; see https://www.w3.org/TR/json-ld11/#alternate-document-location
+                 link_header = api_response.headers['link']
+                 link_header&.match(/<([^>]+)>;\s*rel="alternate";\s*type="application\/ld\+json"/i)&.captures&.first
+               end
+
+    # Return nil if no location found
+    return nil if location.nil?
+
+    # Prepend host if location is relative and host is provided
+    if host && location.start_with?('/')
+      host + location
+    else
+      location
+    end
+  end
+
   def show
     url = params[:url]
 
@@ -55,9 +76,11 @@ class Api::V1::JsonLdController < Api::BaseController
 
         api_response = conn.get(url, nil, signed_headers(url))
 
+        parsed_url = URI.parse(url)
+
         max_redirects = 5
-        while api_response.status == 301 || api_response.status == 302 and max_redirects > 0 do
-          api_response = conn.get(api_response.headers['Location'], nil, signed_headers(api_response.headers['Location']))
+        while (redirect_location = get_redirect_location(api_response, "#{parsed_url.scheme}://#{parsed_url.host}")) do
+          api_response = conn.get(redirect_location, nil, signed_headers(redirect_location))
           max_redirects -= 1
         end
 
