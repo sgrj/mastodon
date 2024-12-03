@@ -2190,10 +2190,10 @@ acorn@^8.8.0:
   resolved "https://registry.yarnpkg.com/acorn/-/acorn-8.8.2.tgz#1b2f25db02af965399b9776b0c2c391276d37c4a"
   integrity sha512-xjIYgE8HBrkpd/sJqOGNspf8uHG+NOHGOw6a/Urj8taM2EXfdNAH2oFcPeIFfsv3+kz/mJrS5VuMqbNLjCa2vw==
 
-activitypub-visualization@1.5.0:
-  version "1.5.0"
-  resolved "https://registry.yarnpkg.com/activitypub-visualization/-/activitypub-visualization-1.5.0.tgz#f38e69a7a99db59629d5165a80b19e1d47756617"
-  integrity sha512-IfXn+FCfg8dKlFXO6E3iOTQjF7+SShQboQodLPCO9gwsi85bEGLq7JgcR4uwHz42jqckKho/XB2Gbz49ispTcA==
+activitypub-visualization@1.5.1:
+  version "1.5.1"
+  resolved "https://registry.yarnpkg.com/activitypub-visualization/-/activitypub-visualization-1.5.1.tgz#6242d99bc800f7a5009919d211a814725fe296e8"
+  integrity sha512-xMtYgNtZAXLyaGDmVQPVTk+0a2jKMEVnMsQfPzQUFiqa4RAwCguyrDM3WOFtLQUylxYp9FI7weXW5LMjVAASLQ==
   dependencies:
     codemirror "^5.65.0"
     dompurify "^3.0.5"
