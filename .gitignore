@@ -19,6 +19,8 @@
 /tmp
 /coverage
 /public/system
+# Paperclip attachment path for the test suite (config/environments/test.rb)
+/spec/test_files
 /public/assets
 /public/packs
 /public/packs-test

@@ -1,0 +1,68 @@
+#!/usr/bin/env bash
+#
+# Run the RSpec suite against dedicated, throwaway Postgres and Redis containers.
+#
+# Brings the stack up (idempotent), loads the schema on first run, then hands every
+# argument straight through to rspec:
+#
+#   bin/rspec-local
+#   bin/rspec-local spec/requests/
+#   bin/rspec-local spec/models/account_spec.rb:42 --seed 1234
+#
+# See TESTING.md.
+set -euo pipefail
+
+cd "$(dirname "$0")/.."
+
+COMPOSE_FILE=docker-compose.test.yml
+
+export DB_HOST=${DB_HOST:-localhost}
+export DB_PORT=${DB_PORT:-5432}
+export DB_USER=${DB_USER:-postgres}
+export REDIS_URL=${REDIS_URL:-redis://localhost:6380/0}
+export RAILS_ENV=test
+export DISABLE_SIMPLECOV=${DISABLE_SIMPLECOV:-true}
+
+# Guard against the destructive failure mode: spec/rails_helper.rb deletes every key
+# after every example, so a suite pointed at the development Redis wipes it.
+if [[ "$REDIS_URL" == *":6379"* || "$REDIS_URL" == "redis://localhost/"* || "$REDIS_URL" == "redis://127.0.0.1/"* ]]; then
+  echo "refusing to run: REDIS_URL=$REDIS_URL looks like the development Redis (port 6379)." >&2
+  echo "The suite calls redis.del(redis.keys) after every example and would wipe it." >&2
+  echo "The test Redis lives on port 6380; see TESTING.md." >&2
+  exit 1
+fi
+
+compose() {
+  if docker compose version >/dev/null 2>&1; then
+    docker compose -f "$COMPOSE_FILE" "$@"
+  else
+    docker-compose -f "$COMPOSE_FILE" "$@"
+  fi
+}
+
+compose up -d >/dev/null
+
+# docker-compose v1 has no `--wait`, so poll the services ourselves.
+wait_for() {
+  local name=$1 tries=60
+  until "${@:2}" >/dev/null 2>&1; do
+    tries=$((tries - 1))
+    if [[ $tries -le 0 ]]; then
+      echo "timed out waiting for $name" >&2
+      exit 1
+    fi
+    sleep 0.5
+  done
+}
+
+wait_for "postgres on $DB_HOST:$DB_PORT" pg_isready -h "$DB_HOST" -p "$DB_PORT" -U "$DB_USER"
+wait_for "redis at $REDIS_URL" redis-cli -u "$REDIS_URL" ping
+
+# First run only. Afterwards maintain_test_schema! (spec/rails_helper.rb) picks up any
+# migrations an upstream merge brought in.
+if ! psql -h "$DB_HOST" -p "$DB_PORT" -U "$DB_USER" -lqt 2>/dev/null | cut -d\| -f1 | grep -qw "${DB_NAME:-mastodon}_test"; then
+  echo "==> test database missing, loading schema (one-time, takes a minute)"
+  bin/rails db:create db:schema:load db:seed
+fi
+
+exec bundle exec rspec "$@"

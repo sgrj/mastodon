@@ -39,6 +39,12 @@ RSpec.configure do |config|
   config.infer_spec_type_from_file_location!
   config.filter_rails_from_backtrace!
 
+  # ActivityPub Academy: upstream specs covering behaviour this fork intentionally
+  # changed are tagged `academy: :disabled` with a `reason:`. They are excluded by
+  # default so a red suite means a real regression. See TESTING.md for the full list
+  # and for how to run them.
+  config.filter_run_excluding(academy: :disabled) unless ENV['ACADEMY_SHOW_DISABLED']
+
   config.include Devise::Test::ControllerHelpers, type: :controller
   config.include Devise::Test::ControllerHelpers, type: :view
   config.include Devise::Test::IntegrationHelpers, type: :request
@@ -62,6 +68,15 @@ RSpec.configure do |config|
   config.after :each do
     Rails.cache.clear
     redis.del(redis.keys)
+    # ActivityLogger keeps its listener registry in a class variable, so a listener
+    # registered by one example would otherwise stay visible to every later example.
+    ActivityLogger.reset
+  end
+
+  # config/environments/test.rb points Paperclip at spec/test_files; don't leave
+  # attachments behind in the working tree.
+  config.after :suite do
+    FileUtils.rm_rf(Rails.root.join('spec', 'test_files'))
   end
 end
 
