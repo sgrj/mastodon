@@ -41,12 +41,16 @@ class ActivityLogAudienceHelper
       if match = string_or_array.match(Regexp.new("https://#{domain}/users/([^/]*)"))
         [match.captures[0]]
       elsif string_or_array.ends_with?("/followers")
+        # The URI comes from a remote server over the federated inbox, so it must be
+        # bound as a parameter rather than interpolated. Only local accounts are
+        # returned: these usernames are ActivityLogger routing keys, and a remote
+        # follower would otherwise be routed at whichever local user shares its name.
         Account
-          .joins(
-            "JOIN follows ON follows.account_id = accounts.id
-                JOIN accounts AS followed ON follows.target_account_id = followed.id
-                WHERE followed.followers_url = '#{string_or_array}'")
-          .map { |account| account.username }
+          .joins('JOIN follows ON follows.account_id = accounts.id')
+          .joins('JOIN accounts AS followed ON follows.target_account_id = followed.id')
+          .where('followed.followers_url = ?', string_or_array)
+          .where(accounts: { domain: nil })
+          .pluck(:username)
       else
         []
       end

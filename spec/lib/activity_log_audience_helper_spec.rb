@@ -115,5 +115,49 @@ RSpec.describe ActivityLogAudienceHelper do
       end
 
     end
+
+    describe 'resolving a followers collection' do
+      def audience_for(followers_uri)
+        Rails.configuration.x.web_domain = 'example.com'
+        ActivityLogAudienceHelper.audience(
+          ActivityLogEvent.new(
+            'inbound', 'https://other.org/users/eve', 'https://example.com/inbox',
+            { 'to' => [followers_uri] }
+          )
+        )
+      end
+
+      # The followers URI arrives from a remote server over the federated inbox, so it
+      # is entirely attacker-controlled, and it reaches the query only when it ends in
+      # "/followers" -- so a payload has to keep that suffix to get there at all.
+      it 'does not let a followers URI comment out the rest of the query' do
+        bob = Fabricate(:account, username: 'bob', followers_url: 'https://other.org/users/bob/followers')
+        Fabricate(:account, username: 'a_follower').follow!(bob)
+        Fabricate(:account, username: 'an_unrelated_account')
+
+        # Interpolated, this closes the string literal and comments out the closing
+        # quote, leaving `WHERE followers_url = 'https://x' OR 1=1`, which matches
+        # every row and returns every account on the instance.
+        expect(audience_for("https://x' OR 1=1 -- /followers")).to eq []
+      end
+
+      it 'does not raise on a followers URI containing a bare quote' do
+        Fabricate(:account, username: 'bystander')
+
+        expect { audience_for("https://other.org/x'/followers") }.to_not raise_error
+        expect(audience_for("https://other.org/x'/followers")).to eq []
+      end
+
+      # The returned usernames are used as ActivityLogger routing keys, and those keys
+      # are local usernames. A remote follower would otherwise route another
+      # instance's activities at whichever local user happens to share its username.
+      it 'only returns local followers' do
+        bob = Fabricate(:account, username: 'bob', followers_url: 'https://other.org/users/bob/followers')
+        Fabricate(:account, username: 'local_follower').follow!(bob)
+        Fabricate(:account, username: 'remote_follower', domain: 'elsewhere.example').follow!(bob)
+
+        expect(audience_for('https://other.org/users/bob/followers')).to eq ['local_follower']
+      end
+    end
   end
 end
