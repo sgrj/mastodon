@@ -13,6 +13,35 @@ class Api::V1::JsonLdController < Api::BaseController
   before_action :require_user!
 
   REQUEST_TARGET = '(request-target)'
+  MAX_REDIRECTS = 5
+
+  def show
+    url = params[:url]
+
+    request.env['rack.hijack'].call
+    io = request.env['rack.hijack_io']
+    Thread.new {
+      begin
+        api_response = follow_redirects(Faraday::Connection.new, url)
+
+        io.write("HTTP/1.1 #{api_response.status}\r\n")
+        io.write("Content-Type: #{api_response.headers['Content-Type']}\r\n")
+        io.write("Access-Control-Allow-Origin: *\r\n")
+        io.write("Connection: close\r\n")
+        io.write("\r\n")
+        io.write(api_response.body)
+      rescue
+        io.write("HTTP/1.1 500\r\n")
+        io.write("Access-Control-Allow-Origin: *\r\n")
+        io.write("Connection: close\r\n")
+        io.write("\r\n")
+      ensure
+        io.close
+      end
+    }
+  end
+
+  private
 
   def signature(headers)
     account = Account.representative
@@ -65,39 +94,22 @@ class Api::V1::JsonLdController < Api::BaseController
     end
   end
 
-  def show
-    url = params[:url]
+  # Follows ordinary redirects as well as the JSON-LD alternate document location.
+  # Bounded: a redirect cycle would otherwise spin forever inside a detached thread,
+  # hammering the remote host.
+  def follow_redirects(conn, url)
+    api_response = conn.get(url, nil, signed_headers(url))
 
-    request.env['rack.hijack'].call
-    io = request.env['rack.hijack_io']
-    Thread.new {
-      begin
-        conn = Faraday::Connection.new
+    parsed_url = URI.parse(url)
+    host = "#{parsed_url.scheme}://#{parsed_url.host}"
 
-        api_response = conn.get(url, nil, signed_headers(url))
+    MAX_REDIRECTS.times do
+      redirect_location = get_redirect_location(api_response, host)
+      break if redirect_location.nil?
 
-        parsed_url = URI.parse(url)
+      api_response = conn.get(redirect_location, nil, signed_headers(redirect_location))
+    end
 
-        max_redirects = 5
-        while (redirect_location = get_redirect_location(api_response, "#{parsed_url.scheme}://#{parsed_url.host}")) do
-          api_response = conn.get(redirect_location, nil, signed_headers(redirect_location))
-          max_redirects -= 1
-        end
-
-        io.write("HTTP/1.1 #{api_response.status}\r\n")
-        io.write("Content-Type: #{api_response.headers['Content-Type']}\r\n")
-        io.write("Access-Control-Allow-Origin: *\r\n")
-        io.write("Connection: close\r\n")
-        io.write("\r\n")
-        io.write(api_response.body)
-      rescue
-        io.write("HTTP/1.1 500\r\n")
-        io.write("Access-Control-Allow-Origin: *\r\n")
-        io.write("Connection: close\r\n")
-        io.write("\r\n")
-      ensure
-        io.close
-      end
-    }
+    api_response
   end
 end
