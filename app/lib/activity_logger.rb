@@ -9,17 +9,18 @@ class ActivityLogger
   end
 
   def self.unregister(id, sse)
-    @@loggers[id].delete(sse)
+    @@loggers.fetch(id, []).delete(sse)
   end
 
   def self.log(id, event)
-    @@loggers[id].each do |logger|
+    # Iterate over a snapshot: a failing write unregisters the logger, and mutating
+    # the array being iterated would silently skip the following logger.
+    @@loggers.fetch(id, []).dup.each do |logger|
       logger.write event
     rescue
-      puts 'rescued'
+      Rails.logger.debug { "activity log: dropping closed listener for #{id}" }
       logger.close
       ActivityLogger.unregister(id, logger)
-      puts 'closed logger'
     end
   end
 
