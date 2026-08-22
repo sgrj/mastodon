@@ -2,3 +2,5 @@ This is a fork of [Mastodon](https://github.com/mastodon/mastodon) that has been
 
 See it in action on [ActivityPub.Academy](https://activitypub.academy).
 
+For running the test suite and for what to check after merging upstream, see [TESTING.md](TESTING.md).
+
