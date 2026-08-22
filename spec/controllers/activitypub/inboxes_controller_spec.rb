@@ -109,4 +109,57 @@ RSpec.describe ActivityPub::InboxesController, type: :controller do
       end
     end
   end
+
+  # Every inbound activity is reported to the Activity Log so the receiving student
+  # sees what arrived, before it is handed to the processing worker.
+  describe 'Activity Log reporting' do
+    let(:remote_account) { Fabricate(:account, domain: 'example.com', uri: 'https://example.com/actor', protocol: :activitypub) }
+    let(:account)        { Fabricate(:account) }
+
+    def published_event
+      captured = nil
+      allow_any_instance_of(ActivityLogPublisher).to receive(:publish) { |_, event| captured = event }
+      yield
+      captured
+    end
+
+    it 'publishes an inbound event naming the sender and the inbox it arrived at' do
+      event = published_event do
+        post :create, params: { account_username: account.username }, body: '{"type":"Follow"}'
+      end
+
+      expect(event).to_not be_nil
+      expect(event.type).to eq 'inbound'
+      expect(event.sender).to eq 'https://example.com/actor'
+      expect(event.path).to eq "https://#{Rails.configuration.x.web_domain}/users/#{account.username}/inbox"
+      expect(event.data).to eq('type' => 'Follow')
+    end
+
+    # The reported path is built from the configured web domain rather than the request
+    # host, so that it matches the URIs ActivityLogAudienceHelper matches against.
+    it 'reports the path against the configured web domain' do
+      event = published_event { post :create, body: '{"type":"Create"}' }
+
+      expect(event.path).to start_with "https://#{Rails.configuration.x.web_domain}/"
+      expect(event.path).to end_with '/inbox'
+    end
+
+    # Reporting is observability on the federation hot path: if it breaks, Mastodon
+    # must still accept the delivery.
+    it 'still accepts the delivery when reporting fails' do
+      allow_any_instance_of(ActivityLogPublisher).to receive(:publish).and_raise(Redis::CannotConnectError)
+
+      post :create, body: '{"type":"Create"}'
+
+      expect(response).to have_http_status(202)
+    end
+
+    it 'does not reject a delivery whose body is not valid JSON' do
+      allow_any_instance_of(ActivityLogPublisher).to receive(:publish)
+
+      post :create, body: 'not json'
+
+      expect(response).to have_http_status(202)
+    end
+  end
 end

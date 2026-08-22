@@ -22,10 +22,6 @@ class ActivityPub::DeliveryWorker
 
   HEADERS = { 'Content-Type' => 'application/activity+json' }.freeze
 
-  def initialize
-    @activity_log_publisher = ActivityLogPublisher.new
-  end
-
   def perform(json, source_account_id, inbox_url, options = {})
     @options        = options.with_indifferent_access
 
@@ -40,10 +36,16 @@ class ActivityPub::DeliveryWorker
 
     perform_request
   rescue => e
+    # Record the failure for the Activity Log, then let it propagate. The ensure block
+    # below publishes the event before the exception leaves this method, so the student
+    # still sees the failure -- but Sidekiq sees it too. That matters for the
+    # subclasses: LowPriorityDeliveryWorker declares retry: 8, and
+    # MigratedFollowDeliveryWorker only unfollows the old account once the Follow has
+    # actually been delivered to the new one.
     @failure = e.message
+    raise
   ensure
-    event = ActivityLogEvent.new('outbound', "https://#{Rails.configuration.x.web_domain}/users/#{@source_account.username}", inbox_url, Oj.load(json, mode: :strict), @failure)
-    @activity_log_publisher.publish(event)
+    publish_activity_log_event(json, inbox_url)
 
     if @inbox_url.present?
       if @performed
@@ -93,5 +95,28 @@ class ActivityPub::DeliveryWorker
 
   def request_pool
     RequestPool.current
+  end
+
+  def activity_log_publisher
+    @activity_log_publisher ||= ActivityLogPublisher.new
+  end
+
+  # Reporting to the Activity Log is observability: it must never turn a delivery into
+  # a failure. It runs from an ensure block, so it also runs on the early return, when
+  # no source account has been loaded.
+  def publish_activity_log_event(json, inbox_url)
+    return if @source_account.nil?
+
+    activity_log_publisher.publish(
+      ActivityLogEvent.new(
+        'outbound',
+        "https://#{Rails.configuration.x.web_domain}/users/#{@source_account.username}",
+        inbox_url,
+        Oj.load(json, mode: :strict),
+        @failure
+      )
+    )
+  rescue => e
+    Rails.logger.warn { "activity log: could not publish outbound event for #{inbox_url}: #{e.class}: #{e.message}" }
   end
 end
