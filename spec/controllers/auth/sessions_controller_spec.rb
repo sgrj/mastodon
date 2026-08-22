@@ -21,7 +21,8 @@ RSpec.describe Auth::SessionsController, type: :controller do
     let(:user) { Fabricate(:user) }
 
     context 'with a regular user' do
-      it 'redirects to home after sign out' do
+      it 'redirects to home after sign out', academy: :disabled,
+                                             reason: 'the fork sends signed-out users to /auth/sign_up rather than the sign-in form, since accounts are one-click and ephemeral (ApplicationController#after_sign_out_path_for)' do
         sign_in(user, scope: :user)
         delete :destroy
 
@@ -41,7 +42,8 @@ RSpec.describe Auth::SessionsController, type: :controller do
         user.account.suspend!
       end
 
-      it 'redirects to home after sign out' do
+      it 'redirects to home after sign out', academy: :disabled,
+                                             reason: 'the fork sends signed-out users to /auth/sign_up rather than the sign-in form, since accounts are one-click and ephemeral (ApplicationController#after_sign_out_path_for)' do
         sign_in(user, scope: :user)
         delete :destroy
 

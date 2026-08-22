@@ -107,12 +107,14 @@ RSpec.describe Auth::RegistrationsController, type: :controller do
         post :create, params: { user: { account_attributes: { username: 'test' }, email: 'test@example.com', password: '12345678', password_confirmation: '12345678', agreement: 'true' } }
       end
 
-      it 'redirects to setup' do
+      it 'redirects to setup', academy: :disabled,
+                               reason: 'the fork redirects straight to the confirmation link for the new user instead of auth_setup_path, so the instance needs no mail server (Auth::RegistrationsController#after_sign_up_path_for)' do
         subject
         expect(response).to redirect_to auth_setup_path
       end
 
-      it 'creates user' do
+      it 'creates user', academy: :disabled,
+                         reason: 'the fork generates username, email and password in build_resource and discards whatever was submitted, so the user cannot be looked up by the submitted email' do
         subject
         user = User.find_by(email: 'test@example.com')
         expect(user).to_not be_nil
@@ -153,12 +155,14 @@ RSpec.describe Auth::RegistrationsController, type: :controller do
         post :create, params: { user: { account_attributes: { username: 'test' }, email: 'test@example.com', password: '12345678', password_confirmation: '12345678', agreement: 'true' } }
       end
 
-      it 'redirects to setup' do
+      it 'redirects to setup', academy: :disabled,
+                               reason: 'the fork redirects straight to the confirmation link for the new user instead of auth_setup_path, so the instance needs no mail server (Auth::RegistrationsController#after_sign_up_path_for)' do
         subject
         expect(response).to redirect_to auth_setup_path
       end
 
-      it 'creates user' do
+      it 'creates user', academy: :disabled,
+                         reason: 'the fork generates username, email and password in build_resource and discards whatever was submitted, so the user cannot be looked up by the submitted email' do
         subject
         user = User.find_by(email: 'test@example.com')
         expect(user).to_not be_nil
@@ -181,12 +185,14 @@ RSpec.describe Auth::RegistrationsController, type: :controller do
         post :create, params: { user: { account_attributes: { username: 'test' }, email: 'test@example.com', password: '12345678', password_confirmation: '12345678', 'invite_code': invite.code, agreement: 'true' } }
       end
 
-      it 'redirects to setup' do
+      it 'redirects to setup', academy: :disabled,
+                               reason: 'the fork redirects straight to the confirmation link for the new user instead of auth_setup_path, so the instance needs no mail server (Auth::RegistrationsController#after_sign_up_path_for)' do
         subject
         expect(response).to redirect_to auth_setup_path
       end
 
-      it 'creates user' do
+      it 'creates user', academy: :disabled,
+                         reason: 'the fork generates username, email and password in build_resource and discards whatever was submitted, so the user cannot be looked up by the submitted email' do
         subject
         user = User.find_by(email: 'test@example.com')
         expect(user).to_not be_nil
@@ -213,12 +219,14 @@ RSpec.describe Auth::RegistrationsController, type: :controller do
         post :create, params: { user: { account_attributes: { username: 'test' }, email: 'test@example.com', password: '12345678', password_confirmation: '12345678', 'invite_code': invite.code, agreement: 'true' } }
       end
 
-      it 'redirects to setup' do
+      it 'redirects to setup', academy: :disabled,
+                               reason: 'the fork redirects straight to the confirmation link for the new user instead of auth_setup_path, so the instance needs no mail server (Auth::RegistrationsController#after_sign_up_path_for)' do
         subject
         expect(response).to redirect_to auth_setup_path
       end
 
-      it 'creates user' do
+      it 'creates user', academy: :disabled,
+                         reason: 'the fork generates username, email and password in build_resource and discards whatever was submitted, so the user cannot be looked up by the submitted email' do
         subject
         user = User.find_by(email: 'test@example.com')
         expect(user).to_not be_nil
