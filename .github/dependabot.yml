@@ -12,7 +12,7 @@
 #     open-pull-requests-limit: 99
 #     allow:
 #       - dependency-type: direct
-# 
+#
 #   - package-ecosystem: bundler
 #     directory: '/'
 #     schedule:
@@ -20,7 +20,7 @@
 #     open-pull-requests-limit: 99
 #     allow:
 #       - dependency-type: direct
-# 
+#
 #   - package-ecosystem: github-actions
 #     directory: '/'
 #     schedule:
