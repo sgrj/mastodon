@@ -58,7 +58,7 @@ jobs:
         run: |-
           ./bin/rails assets:precompile
 
-      - uses: actions/upload-artifact@v3
+      - uses: actions/upload-artifact@v4
         if: matrix.mode == 'test'
         with:
           path: |-
@@ -112,22 +112,16 @@ jobs:
       SAML_ENABLED: true
       CAS_ENABLED: true
       BUNDLE_WITH: 'pam_authentication test'
-      CI_JOBS: ${{ matrix.ci_job }}/4
 
     strategy:
       fail-fast: false
       matrix:
         ruby-version:
           - '.ruby-version'
-        ci_job:
-          - 1
-          - 2
-          - 3
-          - 4
     steps:
       - uses: actions/checkout@v4
 
-      - uses: actions/download-artifact@v3
+      - uses: actions/download-artifact@v4
         with:
           path: './public'
           name: ${{ github.sha }}
