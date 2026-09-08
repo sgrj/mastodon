@@ -6,7 +6,12 @@ RSpec.describe Scheduler::OldAccountCleanupScheduler do
   let!(:generated_user) { Fabricate(:account, username: 'containing_underscore', created_at: 25.hours.ago) }
   let!(:alice) { Fabricate(:account, username: 'alice', created_at: 25.hours.ago) }
   let!(:generated_user_other_instance) { Fabricate(:account, username: 'containing_underscore', domain: 'example.com', created_at: 25.hours.ago) }
-  let!(:instance_actor) { Fabricate(:account, id: 99, created_at: 25.hours.ago) }
+  # The instance actor is seeded at id -99 (see db/seeds/02_instance_actor.rb), which is
+  # the id the scheduler excludes. Give it a username the cleanup would otherwise match,
+  # so this actually exercises the exclusion.
+  let!(:instance_actor) do
+    Account.find(-99).tap { |account| account.update!(username: 'instance_actor', created_at: 25.hours.ago) }
+  end
 
   describe '#perform' do
     it 'removes auto-generated user-accounts that are older than one day' do
