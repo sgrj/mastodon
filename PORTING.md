@@ -24,7 +24,7 @@ One cluster per session, one commit per cluster. Update this file before stoppin
 
 ## Status
 
-- [x] Phase 0 — dev loop green on unmodified v4.7.1 (7646 examples, 0 failures); SSE check pending
+- [x] Phase 0 — dev loop green on unmodified v4.7.1 (7646 examples, 0 failures); Rack-hijack SSE verified
 - [ ] 1 — Ops & config
 - [ ] 2 — WebFingerOverride
 - [ ] 3 — Actor type (backend half only)
@@ -127,3 +127,22 @@ combine `network_mode:` with the `networks:` the base service declares.
 (`0 examples, 1 error occurred outside of examples`), once from a bug in `bin/rspec-local` — `exec`
 bypasses shell functions and resolved `compose` to ImageMagick's binary in `PATH`. Always check the
 example count, never the status.
+
+### 5. Rack-hijack SSE survives Rack 3 / Puma 8 / Rails 8.1 — verified, not assumed
+
+**Risk 3 in the plan is retired.** Both the Activity Log (`ActionController::Live` + a
+`rack.hijack` response header) and the Explorer (raw socket writes) depend on _partial_ hijack,
+which Rack 3 could plausibly have dropped.
+
+Verified twice on this branch, against rack 3.2.7 / puma 8.0.2 / rails 8.1.3.1:
+
+1. A bare rackup app returning `{'rack.hijack' => proc}` — streamed correctly under Puma 8.
+2. A throwaway Rails controller mirroring `Api::V1::ActivityLogController` exactly (same
+   `Content-Type`/`Last-Modified`, same `response.headers['rack.hijack'] = proc`, same
+   `SSE.new(stream)`, same `head :ok`) — streamed all events with `content-type:
+text/event-stream`.
+
+Rack 3 lowercases response header names; Rails handles that, and `rack.hijack` is already
+lowercase. Both probes were removed after the check — nothing of them is committed.
+
+**Cost:** none. Cluster 5 and Cluster 7 can be ported as-is rather than re-architected.
