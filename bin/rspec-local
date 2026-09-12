@@ -1,0 +1,86 @@
+#!/usr/bin/env bash
+#
+# Run the RSpec suite inside the devcontainer.
+#
+# The host has neither Ruby >= 3.3 nor Node 24, so everything runs in the `app`
+# service from .devcontainer/compose.yaml. Arguments pass straight through:
+#
+#   bin/rspec-local
+#   bin/rspec-local spec/requests/
+#   bin/rspec-local spec/models/account_spec.rb:42 --seed 1234
+#
+# See TESTING.md.
+set -euo pipefail
+
+cd "$(dirname "$0")/.."
+
+SERVICE=app
+
+if ! docker compose version >/dev/null 2>&1; then
+  echo "refusing to run: docker compose v2 is required." >&2
+  echo "The devcontainer compose files have no 'version:' key, which v1 cannot parse." >&2
+  echo "Install it with: sudo apt-get install docker-compose-v2" >&2
+  exit 1
+fi
+
+compose() {
+  docker compose -f .devcontainer/compose.yaml -f docker-compose.test.yml "$@"
+}
+
+# Only what the suite needs. `es` and `libretranslate` are large and matter only to
+# :search specs, which are excluded by default -- and leaving them down is also what
+# keeps ES_ENABLED/LIBRE_TRANSLATE_ENDPOINT unset below honest.
+#
+# redis-test (docker-compose.test.yml) lives in the app container's network namespace,
+# so Redis answers on app's own localhost. The base `redis` service stays down for test
+# runs; bin/dev uses it.
+compose up -d --wait app db redis-test >/dev/null
+
+# The devcontainer sets these on the service, and dotenv will not override a variable
+# that is already set -- so they silently defeat .env.test and fail 12 specs on an
+# unmodified v4.7.1:
+#
+#   LOCAL_DOMAIN              .env.test wants cb6e6126.ngrok.io; the container forces
+#                             localhost:3000, so local URLs stop being recognised as
+#                             local (4 "tagged objects" failures)
+#   LIBRE_TRANSLATE_ENDPOINT  makes the "no translation service configured" branch
+#                             unreachable, so the spec attempts a real HTTP call
+#   ES_ENABLED / ES_HOST      point at a service we deliberately do not start
+#   REDIS_HOST / REDIS_PORT   redis_configuration_spec asserts the localhost defaults
+#
+# Clearing them restores the defaults .env.test and the specs assume.
+CLEAN_ENV=(env -u LOCAL_DOMAIN -u LIBRE_TRANSLATE_ENDPOINT
+           -u ES_ENABLED -u ES_HOST -u ES_PORT
+           -u REDIS_HOST -u REDIS_PORT)
+
+# Guard against the destructive failure mode.
+#
+# spec/rails_helper.rb wipes Redis after every example (`redis.del(redis.keys)`).
+# Upstream contains that blast radius by choosing db = TEST_ENV_NUMBER + 1 whenever
+# Rails.env.test? -- development keeps db 0. But that is *conditional on the
+# environment*, and .devcontainer/compose.yaml sets RAILS_ENV=development on the
+# service, which spec/rails_helper.rb's `ENV['RAILS_ENV'] ||= 'test'` cannot override.
+#
+# So we force RAILS_ENV=test, and assert inside the very shell that runs rspec that it
+# actually took effect. If it ever does not, the suite would wipe development's redis.
+#
+# Do NOT set REDIS_URL: lib/mastodon/redis_configuration.rb returns early on a URL and
+# discards the computed db, silently defeating the separation above.
+guard='
+if [ "$RAILS_ENV" != "test" ]; then
+  echo "refusing to run: RAILS_ENV is \"$RAILS_ENV\", not \"test\"." >&2
+  echo "spec/rails_helper.rb calls redis.del(redis.keys) after every example. Outside" >&2
+  echo "the test environment that targets redis db 0 -- development data -- and wipes it." >&2
+  exit 1
+fi
+'
+
+# printf %q keeps arguments containing spaces intact across the bash -lc boundary.
+args=$(printf '%q ' "$@")
+clean=$(printf '%q ' "${CLEAN_ENV[@]}")
+
+# Note: no `exec` here. `exec` bypasses shell functions and resolves the name in PATH,
+# where `compose` is ImageMagick's binary. This is the last command, so its exit status
+# is the script's.
+compose exec -T -e RAILS_ENV=test "$SERVICE" \
+  bash -lc "${guard} exec ${clean} bin/rspec ${args}"

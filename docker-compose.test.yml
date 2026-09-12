@@ -1,0 +1,29 @@
+# Test-only additions, layered on top of .devcontainer/compose.yaml:
+#
+#   docker compose -f .devcontainer/compose.yaml -f docker-compose.test.yml up -d app db redis-test
+#
+# bin/rspec-local does this for you.
+#
+# Why this file exists
+# --------------------
+# spec/lib/mastodon/redis_configuration_spec.rb asserts the *default* Redis URL,
+# redis://localhost:6379/0, when no REDIS_ environment variables are set. Upstream CI
+# satisfies that because GitHub Actions service containers answer on localhost. The
+# devcontainer does not: Redis is a separate host reachable as `redis`, so REDIS_HOST
+# must be set -- and setting it fails those specs. Unsetting it instead breaks every
+# spec that touches Redis, because nothing listens on localhost.
+#
+# So we give the app container a Redis that really does answer on its own localhost, by
+# putting this one in the app's network namespace. REDIS_HOST can then stay unset, the
+# defaults the specs assert are the defaults actually used, and the suite is green.
+#
+# This is additive rather than an override of the base `redis` service: that service
+# declares `networks:`, which compose refuses to combine with `network_mode:`. Leaving
+# it alone also means bin/dev keeps its own Redis, so a test run cannot disturb
+# development state at all.
+services:
+  redis-test:
+    image: redis:7-alpine
+    # Share the app container's network namespace, so this is app's 127.0.0.1:6379.
+    network_mode: 'service:app'
+    restart: unless-stopped
