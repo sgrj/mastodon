@@ -31,7 +31,7 @@ One cluster per session, one commit per cluster. Update this file before stoppin
 - [x] 4 — Academy signup (sets `id_scheme: :username_ap_id`)
 - [x] 5 — Activity Log pipeline
 - [x] 6 — Activity Workshop (the last `Oj.` call sites are gone)
-- [ ] 7 — ActivityPub Explorer
+- [x] 7 — ActivityPub Explorer (the hand-rolled signing is gone; `Request` does it)
 - [ ] 8 — Old account cleanup
 - [ ] 9 — Branding & OG
 - [ ] Phase 2 — Frontend
@@ -152,6 +152,51 @@ Cookie'`, so caching it is correct. Upstream's own `redirect_unauthenticated_to_
   `type` whitelist, no inbox allowlist, no SSRF guard. `params.permit(:inbox_url, activity: {})`
   passes the student's object through wholesale; the only transformations are Rails' own (see
   Surprise 32). Anything added here would remove the exercise.
+
+- **The ActivityPub Explorer signs through `Request`, not by hand.** The fork built its own
+  draft-cavage signature out of `account.keypair.sign(...)`, which cannot run on v4.7.1 at all (see
+  Surprise 35). `app/lib/request.rb` already owns exactly this: `#on_behalf_of(actor)` picks the
+  account's RSA keypair out of the new `keypairs` table, `CavageSignatureFeature` produces the same
+  `keyId`/`algorithm`/`headers`/`signature` parameters the fork produced, and `#perform` double-knocks
+  with RFC 9421 if the first attempt comes back 400 or 401. It is also what every other outbound
+  signed fetch in this codebase uses, so the Explorer now succeeds exactly where federation succeeds.
+  About 45 lines of hand-rolled crypto (`#signature`, `#signed_headers`, `REQUEST_TARGET`) were
+  deleted rather than ported.
+
+- **`allow_local: true` on that `Request` — the SSRF stays deliberate.** `Request::Socket`
+  refuses every private address outside development (`Mastodon::PrivateNetworkAddressError`), which
+  would have quietly removed half of what the Explorer is for. `allow_local: true` selects
+  `ProxySocket`, whose `check_private_address` is a no-op, restoring the fork's Faraday reach. See
+  Surprise 36 for what is still blocked.
+
+- **`follow: false`, because the Explorer follows redirects itself.** `Request` defaults to
+  `follow: { max_hops: 3 }`. Leaving it on would collapse the chain before `follow_redirects` saw
+  it, cap it at 3 instead of the fork's `MAX_REDIRECTS = 5`, and — the reason it cannot be used at
+  all — it cannot see the JSON-LD _alternate document location_, which is a `Link` header on a 200
+  rather than a redirect.
+
+- **`JsonLdHelper#fetch_resource_without_id_validation` is deliberately not used.** It returns
+  parsed JSON only for a 200 with a valid ActivityPub content type and `nil` for everything else.
+  A 404, an HTML page, a redirect and a `.well-known` JRD are precisely what the Explorer exists to
+  show, so the helper throws away the whole feature. `Request#perform` is used directly and the
+  status, headers and body are carried out of its block in a `ProxiedResponse` struct — the response
+  object itself is drained and closed by `perform`'s own ensure.
+
+- **The URL is validated before the socket is hijacked.** After a full hijack Rails can no longer
+  write to the client, so `rescue_from ArgumentError` would have nowhere to render — in the fork it
+  was unreachable code and a bad URL produced a hand-written raw 500. A blank `url`, or one
+  `Request.valid_url?` rejects, is now a normal 422 JSON body.
+
+- **The hand-written response line gained a reason phrase and a `Content-Length`.** The fork wrote
+  `HTTP/1.1 404\r\n` — no reason phrase, no length, body delimited by `Connection: close` alone.
+  Since this response is assembled by hand rather than by Rack, it is written as well-formed
+  HTTP/1.1. An empty `Content-Type` header is omitted rather than emitted blank. Verified against a
+  real Puma 8; see Surprise 38.
+
+- **The detached fetch thread runs inside `Rails.application.executor.wrap`,** for the same reason
+  `ActivityLogSubscriber` does (Surprise 28): it calls `Account.representative`, so a hand-spawned
+  thread would hold that database connection until the Puma worker exited. 20 sequential Explorer
+  fetches against a dev server with a pool of 6 all returned 200.
 
 - **Mail delivery is configured by environment, not by patching `config/environments/`.**
   The fork forced `config.action_mailer.delivery_method = :file` in both
@@ -936,3 +981,125 @@ Routes went to `config/routes/api.rb` next to Cluster 2's `resource :webfinger` 
 
 Suite: **7722 → 7734**, 12 new examples in one file, no fabricator, nothing newly tagged
 `academy: :disabled`.
+
+### 35. The fork's Explorer could not sign anything on v4.7.1 — and the fix is a deletion
+
+**Assumed** (plan, Cluster 7): the Explorer is "raw socket writes and a detached thread; re-verify
+under Rack 3". The signing was not called out as a risk at all.
+
+**Actually:** two independent changes under it, and the controller as written raises on every
+non-WebFinger fetch:
+
+1. `Account#keypair` changed return type. At v4.1.18 it was
+   `OpenSSL::PKey::RSA.new(private_key || public_key)`, so the fork's
+   `account.keypair.sign(OpenSSL::Digest.new('SHA256'), signed_string)` worked. At v4.7.1 it is
+   `keypair(type: nil)` and returns a **`Keypair` ActiveRecord record**, which has no `#sign`. The
+   `OpenSSL` object is one level further down, at `Account#keypair(type: :rsa).keypair`.
+2. `db/post_migrate/20260702144128_migrate_local_account_keypairs.rb` moved local keypairs into a
+   dedicated `keypairs` table and `Keypair` declares `encrypts :private_key`, so the private key is
+   encrypted at rest. Reaching around that to re-implement signing by hand is the wrong direction
+   twice over.
+
+**Cost: negative.** `app/lib/request.rb` already does all of it, correctly, and is what the rest of
+the codebase signs with. `#signature`, `#signed_headers` and `REQUEST_TARGET` were deleted (~45
+lines) rather than ported, and the Explorer gained v4.7's RFC 9421 double-knock for free. What
+remains fork-specific is `get_redirect_location` / `follow_redirects` (byte-for-byte the fork's
+logic bar the port fix in Surprise 38) and the raw socket write.
+
+The fork's four `#signed_headers` / `#signature` examples became three `#build_request` examples
+plus a `#fetch` example that reads the `Signature` header off the request WebMock actually
+intercepted, rebuilds the signed string from the `headers=` parameter, and verifies it against
+`Account.representative`'s public key. That is a stronger assertion than the fork's, because it
+tests the bytes that go on the wire rather than a hash the controller built.
+
+**Also gone: Faraday.** The fork's `require "faraday"` worked only because Elasticsearch and
+OpenTelemetry pull it in transitively — it has never been a direct dependency in either version's
+`Gemfile`. Nothing in this cluster references it now.
+
+### 36. What `Request` blocks that the fork's Faraday call did not
+
+The Explorer's SSRF is deliberate (`TESTING.md` says so), so every restriction `Request` adds had
+to be checked rather than inherited. Three exist; one needed disabling, two are harmless:
+
+| Restriction                                                                                     | Where                                                                                                                | Verdict                                                                                                                                                                                                                |
+| ----------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Private / link-local / loopback addresses** — `Mastodon::PrivateNetworkAddressError`          | `Request::Socket.check_private_address`, skipped only in `Rails.env.development?` or for `ALLOWED_PRIVATE_ADDRESSES` | **Disabled** with `allow_local: true`. This is the one that matters: in production it would refuse `http://10.0.0.5/users/alice` and every other lab-network target, which is a large part of what a workshop fetches. |
+| **`.onion` / `.i2p`** — `Mastodon::HostValidationError` unless `ALLOW_ACCESS_TO_HIDDEN_SERVICE` | `Request#block_hidden_service?`                                                                                      | Left in place. Faraday could not have reached a hidden service either without a proxy, so nothing is lost.                                                                                                             |
+| **Non-http(s) schemes**                                                                         | `HTTP.rb` would fail on them anyway                                                                                  | Turned into an explicit `Request.valid_url?` check before the hijack, so `file:///etc/passwd` is a 422 rather than a raw 500.                                                                                          |
+
+Nothing restricts destination **ports** — neither `Request` nor `HTTP.rb` keeps an allow-list — so
+`http://remote.example:8080/actor` is fetched. Confirmed live against a probe server on :4567.
+
+Two things `Request` does that Faraday did not, both benign here: it normalizes the URL through
+`Addressable::URI#normalize` before fetching, and it sends `Accept-Encoding: gzip` and inflates the
+response (`HTTP.use(:auto_inflate)`), so the student sees the decoded body.
+
+**Not added, on purpose:** a response size cap. `response.body.to_s` reads the whole remote body
+into the detached thread, exactly as the fork's Faraday call did. `Request` offers
+`body_with_limit` / `truncated_body` at 1 MB, but a silently truncated JSON document is a worse
+lesson than a large one, and the endpoint is behind `require_user!`. Recorded here because it is
+the one unbounded thing left in this cluster.
+
+### 37. The instance actor's key id is no longer `#main-key`
+
+The fork's spec asserted `keyId == ActivityPub::TagManager.instance.key_uri_for(account)`, which is
+`uri_for(account) + '#main-key'`. On v4.7.1 `Account#generate_keys` writes
+`keypairs.build(local_fragment: "#rsa-#{SecureRandom.hex(8)}", …)`, and `Keypair#full_uri` — which
+is what `CavageSignatureFeature` puts in `keyId` — is `uri_for(account) + local_fragment`. Observed
+live: `keyId="http://localhost:3000/actor#rsa-f…"`.
+
+`key_uri_for` is now the **legacy** spelling, reached only through `Keypair.from_legacy_account` for
+an account whose keys predate the migration. Both shapes occur in one database after Phase 3, so
+nothing may assume either. The spec asserts against `Account.representative.keypair(type: :rsa).full_uri`.
+
+Nothing to fix — `Request` gets this right on its own — but it is one more thing the fork's
+hand-rolled signer would have got wrong even after `Account#keypair` was untangled.
+
+### 38. The raw hijacked write still works — and it exposed a fork bug in relative redirects
+
+**Full hijack under Rack 3 / Puma 8 / Rails 8.1 is fine.** `puma-8.0.2/lib/puma/client.rb:142`'s
+`full_hijack` still does `env['rack.hijack_io'] ||= @io` _and_ returns it, so both the Rack 3
+spelling (use the callable's return value) and the fork's (read `rack.hijack_io` afterwards) work.
+`Puma::Response` returns `:async` for a hijacked client, so Rails' own response is discarded and
+there is no missing-template noise in the log. Verified end to end against a real dev server:
+
+| Probe                                       | Result                                                          |
+| ------------------------------------------- | --------------------------------------------------------------- |
+| Instance actor, `application/activity+json` | `200`, correct `Content-Type`, 2971-byte body                   |
+| A path that does not exist                  | `404`, `application/json`, `{"error":"Not Found"}`              |
+| `.well-known/webfinger`                     | `200`, `application/jrd+json`, **no** `Signature` sent          |
+| `302` → `200` across two hops               | `200`, and the probe echoed the second hop's `Signature` header |
+| A `302` pointing at itself                  | `302` after `MAX_REDIRECTS`, in 0.08s — not a hang              |
+| Missing `url` / `file://`                   | `422` JSON, rendered normally (pre-hijack)                      |
+| 20 sequential fetches, dev pool of 6        | 20 × `200`, no connection-pool exhaustion                       |
+
+**The bug the live probe found:** `follow_redirects` built the base for a relative `Location` as
+`"#{parsed_url.scheme}://#{parsed_url.host}"` — which **drops the port**. The redirect probe on
+`127.0.0.1:4567` sent `Location: /final` and the Explorer went to `127.0.0.1:80`, producing a
+hand-written raw 500 with no explanation anywhere. This is a fork bug, not a port regression: the
+fork's `URI.parse` line has the same shape, and its spec only ever used a default-port host, so it
+passed.
+
+Fixed with `Addressable::URI.parse(url).site` (scheme + authority, so the port survives), and by
+resolving each relative location against the URL that _issued_ the redirect rather than against the
+one the student typed — which also fixes a chain that crosses hosts. Two examples pin both.
+
+### 39. Cluster 7 in numbers
+
+Suite: **7734 → 7759**, 25 new examples in two files, no fabricator, nothing newly tagged
+`academy: :disabled`.
+
+`spec/controllers/api/v1/json_ld_controller_spec.rb` (22) keeps the fork's approach — `#show`
+hijacks the socket, so it is unreachable through Rack::Test and the private methods are exercised
+directly. It is no longer _only_ that, though: `#fetch` is now covered end to end through WebMock,
+which intercepts inside `HTTP::Client#perform`, _after_ http.rb has applied
+`CavageSignatureFeature`, so the assertions are made against the real outgoing request.
+
+`spec/requests/activitypub_explorer_spec.rb` (3) is new and covers what a request spec now can:
+routing, `require_user!`, and the two pre-hijack URL rejections. That is the whole of `#show` that
+does not touch `rack.hijack`. Anything past the hijack still needs a real server — the table in
+Surprise 38 is that check, and it should be re-run at the Phase 3 smoke test.
+
+Routes went to `config/routes/api.rb` next to Clusters 2, 5 and 6 (Surprise 10); `config/routes.rb`
+is untouched. The `/activitypub_explorer` SPA path is Phase 2. `dist/nginx.conf`'s unbuffered
+`location ^~ /api/v1/json_ld` block landed in Cluster 1 and needed nothing here.

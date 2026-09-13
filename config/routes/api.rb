@@ -152,6 +152,10 @@ namespace :api, format: false do
     # inbox. The SPA route lives with the rest of the frontend.
     resource :activity, only: [:create], controller: 'activity'
 
+    # ActivityPub Explorer (academy): a signed fetch of any URL, proxied back raw.
+    # The SPA route lives with the rest of the frontend.
+    get '/json_ld', to: 'json_ld#show'
+
     resource :instance, only: [:show] do
       scope module: :instances do
         resources :peers, only: [:index]

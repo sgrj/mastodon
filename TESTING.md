@@ -79,6 +79,13 @@ six new files, plus 14 in `spec/workers/activitypub/delivery_worker_spec.rb` and
 fabricator, so the arithmetic is unusually honest this time. The two pendings are upstream's
 (`spec/lib/activitypub/object_integrity_proof_spec.rb`, "waiting for ubuntu-26.04 runners").
 
+After cluster 6: **7734 examples, 0 failures, 2 pending.** 12 new examples in
+`spec/requests/activity_workshop_spec.rb`, no fabricator, nothing newly tagged.
+
+After cluster 7: **7759 examples, 0 failures, 2 pending.** The ActivityPub Explorer adds 25: 22 in
+`spec/controllers/api/v1/json_ld_controller_spec.rb` and 3 in
+`spec/requests/activitypub_explorer_spec.rb`. No fabricator, nothing newly tagged.
+
 Re-establish this whenever the base version changes. Any failure after a cluster lands is
 ours — that unambiguity is the whole point of keeping the baseline green.
 
@@ -220,3 +227,28 @@ docker compose -f .devcontainer/compose.yaml exec app bash -lc \
 
 One hook, and no Puma deprecation warning (`on_worker_boot` is only a deprecated alias in Puma 8 —
 see Surprise 26).
+
+## Deliberately unrestricted
+
+Each of these is the point of the feature it belongs to, not an oversight:
+
+- **`GET /api/v1/json_ld` fetches arbitrary URLs signed with the instance actor's key.** That is
+  the ActivityPub Explorer. It is an SSRF by design: `allow_local: true` is passed to `Request` on
+  purpose so that private and loopback addresses stay reachable, because a workshop's targets live
+  on the lab network. It is behind `require_user!` and nothing else. Do not add a host allow-list
+  without removing the exercise first. See Decisions and Surprise 36 in `PORTING.md`.
+- **`POST /api/v1/activity` delivers arbitrary activities to arbitrary inboxes,** signed as the
+  student, with no validation of the activity whatsoever. That is the Activity Workshop.
+- **`ActivityPub::DeliveryWorker` uses `retry: 0`,** so a failure appears in the Activity Log once,
+  immediately, instead of being retried out of sight for days.
+
+Two endpoints hijack the Rack socket and answer from a bare thread, so they cannot be driven
+through Rack::Test end to end:
+
+- `Api::V1::ActivityLogController#show` — the spec invokes the returned `rack.hijack` proc itself
+  and asserts the SSE is registered.
+- `Api::V1::JsonLdController#show` — a _full_ hijack, so there is no proc to invoke. Its redirect
+  following, request building and signing are exercised directly, the reachable part (routing,
+  authentication, URL validation) has a request spec, and the raw socket write is checked by hand
+  against a real Puma. The probe table is Surprise 38 in `PORTING.md`; re-run it at the Phase 3
+  smoke test.
