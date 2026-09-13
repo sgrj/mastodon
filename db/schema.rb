@@ -1434,6 +1434,14 @@ ActiveRecord::Schema[8.1].define(version: 2026_08_12_154114) do
     t.index ["unconfirmed_email"], name: "index_users_on_unconfirmed_email", where: "(unconfirmed_email IS NOT NULL)"
   end
 
+  create_table "web_finger_overrides", force: :cascade do |t|
+    t.bigint "account_id", null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.text "value"
+    t.index ["account_id"], name: "index_web_finger_overrides_on_account_id"
+  end
+
   create_table "web_push_subscriptions", force: :cascade do |t|
     t.bigint "access_token_id", null: false
     t.datetime "created_at", precision: nil, null: false
@@ -1631,6 +1639,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_08_12_154114) do
   add_foreign_key "users", "invites", on_delete: :nullify
   add_foreign_key "users", "oauth_applications", column: "created_by_application_id", on_delete: :nullify
   add_foreign_key "users", "user_roles", column: "role_id", on_delete: :nullify
+  add_foreign_key "web_finger_overrides", "accounts", on_delete: :cascade
   add_foreign_key "web_push_subscriptions", "oauth_access_tokens", column: "access_token_id", on_delete: :cascade
   add_foreign_key "web_push_subscriptions", "users", on_delete: :cascade
   add_foreign_key "web_settings", "users", name: "fk_11910667b2", on_delete: :cascade

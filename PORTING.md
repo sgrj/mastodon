@@ -26,7 +26,7 @@ One cluster per session, one commit per cluster. Update this file before stoppin
 
 - [x] Phase 0 — dev loop green on unmodified v4.7.1 (7646 examples, 0 failures); Rack-hijack SSE verified
 - [x] 1 — Ops & config
-- [ ] 2 — WebFingerOverride
+- [x] 2 — WebFingerOverride
 - [ ] 3 — Actor type (backend half only)
 - [ ] 4 — Academy signup ← **must set `id_scheme: :username_ap_id`**
 - [ ] 5 — Activity Log pipeline
@@ -226,7 +226,7 @@ Cluster 1 committed the fix because the cluster could not otherwise be verified.
 
 **Cost:** ~10 minutes, and it very nearly counted as a pass.
 
-### 6. The pre-commit hook could not run at all on this host
+### 8. The pre-commit hook could not run at all on this host
 
 **Assumed:** nothing — the plan never considered the hook.
 
@@ -248,3 +248,119 @@ root-owned objects the host's git could not write.
 **Still outstanding:** the JS tasks (`yarn tsc`, `yarn i18n:extract`) also assume a working
 toolchain and have not been exercised — the host has yarn 1.22.19 against a `packageManager` pin of
 yarn 4.18.0. They only trigger on JS/TS changes, so Phase 2 will be the first to find out.
+
+### 9. `oj` is gone from v4.7.1 — 20 call sites in the fork reference an undefined constant
+
+**Assumed:** Cluster 2 was near-mechanical: a model, three migrations, two controllers, specs.
+
+**Actually:** v4.1.18's `Gemfile` has `gem 'oj', '~> 3.13'`. v4.7.1 has no `oj` at all, not even
+transitively — it is absent from `Gemfile.lock`. Every `Oj.load` / `Oj.dump` in the fork is a
+`NameError` on 4.7.1.
+
+Ported as `JSON.parse(value)` in `Api::V1::WebfingerController#create`, `.to_json` in the
+fabricator, and `rescue_from JSON::ParserError, EncodingError`. The one behaviour that matters is
+preserved: `JSON.parse('this is not json')` raises `JSON::ParserError` exactly where
+`Oj.load(…, mode: :strict)` raised `Oj::ParseError`, so the 422 branch still fires.
+
+**Cost:** minutes here, but this is a _silent, repo-wide_ hazard. The fork has **20 `Oj.` call
+sites across 13 files**, and only 3 of them are Cluster 2:
+
+```sh
+git grep -n 'Oj\.' activitypub-academy -- app lib spec
+```
+
+The rest land in Clusters 5 (`activitypub/inboxes_controller.rb`, `activity_log_event.rb`,
+`activity_log_publisher.rb`, `delivery_worker.rb`), 6 (`api/v1/activity_controller.rb`) and their
+specs. A missed one is not a boot failure — it is a `NameError` on whichever code path a student
+happens to exercise. Substitute on sight when porting those clusters.
+
+### 10. `config/routes.rb` is no longer where API routes live
+
+**Assumed:** the fork spec patches `config/routes.rb`, so this cluster does too.
+
+**Actually:** v4.7.1 split routes into `config/routes/{api,admin,fasp,settings,web_app}.rb`. The
+`namespace :v1` block is in **`config/routes/api.rb`** (the webfinger resource went in next to
+`namespace :emails`, before `resource :instance`). `config/routes.rb` is not touched by this
+cluster at all.
+
+The fork's other routing change — `/web_finger_forge` in the SPA path list — now lives in
+`config/routes/web_app.rb`. Deliberately **not** ported: that is Phase 2, along with the
+`web_finger_forge` React component.
+
+Related: `body_as_json` is gone from the spec helpers; use `response.parsed_body`. It returns
+**symbol** keys for `application/jrd+json`, because `config/initializers/mime_types.rb` registers
+that type as a synonym of `:json`. It is a `HashWithIndifferentAccess`-like object, so
+`parsed_body[:subject]` works but `eq(subject: …, links: …)` against a plain symbol-keyed Hash does
+**not** — assert on `response.body` when you want "served verbatim" anyway.
+
+### 11. `well_known/webfinger_controller.rb#show` really was clean — but everything around it moved
+
+**Assumed** (from the plan): `#show` is CLEAN, upstream never touched that method.
+
+**Actually:** confirmed true, and worth stating precisely — six upstream commits touched that file
+between the tags and none of them touched `#show`. But `set_account` was rewritten (it now
+delegates to `WebfingerResource#account`, which since `806e2a993a` also resolves
+`/ap/accounts/<id>` URLs), `check_account_suspension` moved to `permanently_unavailable?`, and
+`gone` moved and gained an `expires_in`. So a **patch-shaped** apply would still have conflicted
+even though the hunk itself is clean. Hand-port, as the method says.
+
+Two follow-ups checked while here:
+
+- **`WebfingerSerializer` diverges from what a stored override mirrors,** as the plan warned. It
+  gained the FEP-3b86 `Create` / `Object` link templates, and `self` / `aliases` hrefs now come
+  from `ActivityPub::TagManager.instance.uri_for`. Under v4.7's default `id_scheme:
+numeric_ap_id` that href is `https://host/ap/accounts/<id>`, **not** `https://host/users/<name>`
+  — so the "real" document the Forge offers a student as a starting point no longer looks like the
+  fork's canonical example, and a blob copied from the old academy will disagree with the actor it
+  points at. Acceptable for a forge (inconsistency is the lesson) and **fixed for free by Cluster
+  4's `id_scheme: :username_ap_id`**. Nothing in Cluster 2 changes.
+
+- **v4.7's "invalid handle" concept does not reach this controller.** `Account#invalidate_username!`
+  raises `ArgumentError` for local accounts, and both webfinger endpoints only ever serve local
+  accounts, so `invalidated_username?` is always false here and `to_webfinger_s` is unaffected. The
+  `invalid_handle` attribute is remote-account UI only (`REST::AccountSerializer`,
+  `ResolveAccountService`). Checked and clear — no mitigation needed.
+
+### 12. `bin/rails db:migrate` rewrites an unrelated view in `db/schema.rb`
+
+**Assumed:** regenerating `db/schema.rb` by running migrations yields only the new table.
+
+**Actually:** it also reformats the `user_ips` view, requalifying the subquery columns
+(`SELECT user_id` → `SELECT t0.user_id`, `GROUP BY user_id, ip` → `GROUP BY t0.user_id, t0.ip`).
+That is Postgres 14 in the devcontainer re-emitting `pg_get_viewdef` differently from whatever
+version generated the committed file upstream — nothing to do with this cluster.
+
+Reverted by hand so the committed schema diff is only `web_finger_overrides` and its foreign key.
+**Expect this hunk again after every migration run; drop it every time.** Do not "fix" it by
+committing the reformatting — it would come back inverted on a different Postgres.
+
+### 13. Adding a fabricator adds a spec example you did not write
+
+**Assumed:** the suite delta after a cluster equals the number of examples in the specs you added,
+so anything else is a regression. Cluster 2 added 15 examples but the suite went 7646 → **7662**.
+
+**Actually:** `spec/fabrication/fabricators_spec.rb` walks
+`Fabrication.manager.schematics` at load time and defines one example per fabricator:
+
+```ruby
+Fabrication.manager.schematics.map(&:first).each do |factory_name|
+  RSpec.describe "The #{factory_name} factory" do
+    it 'is able to create valid records' do
+      records = Fabricate.times(2, factory_name)
+      expect(records).to all(be_valid)
+    end
+  end
+end
+```
+
+So `spec/fabricators/web_finger_override_fabricator.rb` silently contributed the 16th example,
+"The web_finger_override factory is able to create valid records". Confirmed by bisecting with
+`--dry-run` while moving files out of the tree.
+
+Two things follow for later clusters:
+
+- **Budget +1 example per new fabricator** when comparing against the 7646 baseline. Do not go
+  hunting for a regression that is not there (this cost ~25 minutes of dry-run bisection here).
+- That generated example calls `Fabricate.times(2, …)` — **two** records — specifically to catch
+  uniqueness collisions. A fabricator with a constant value in a unique column fails there and
+  nowhere else. `web_finger_override`'s `value` derives from the account, so it is fine.

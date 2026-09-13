@@ -141,6 +141,9 @@ namespace :api, format: false do
       get :check_confirmation, to: 'confirmations#check'
     end
 
+    # WebFinger Forge (academy). The SPA route lives with the rest of the frontend.
+    resource :webfinger, only: [:show, :create], controller: 'webfinger'
+
     resource :instance, only: [:show] do
       scope module: :instances do
         resources :peers, only: [:index]
