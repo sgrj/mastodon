@@ -300,7 +300,7 @@ that type as a synonym of `:json`. It is a `HashWithIndifferentAccess`-like obje
 **Actually:** confirmed true, and worth stating precisely — six upstream commits touched that file
 between the tags and none of them touched `#show`. But `set_account` was rewritten (it now
 delegates to `WebfingerResource#account`, which since `806e2a993a` also resolves
-`/ap/accounts/<id>` URLs), `check_account_suspension` moved to `permanently_unavailable?`, and
+`/ap/users/<id>` URLs), `check_account_suspension` moved to `permanently_unavailable?`, and
 `gone` moved and gained an `expires_in`. So a **patch-shaped** apply would still have conflicted
 even though the hunk itself is clean. Hand-port, as the method says.
 
@@ -309,7 +309,7 @@ Two follow-ups checked while here:
 - **`WebfingerSerializer` diverges from what a stored override mirrors,** as the plan warned. It
   gained the FEP-3b86 `Create` / `Object` link templates, and `self` / `aliases` hrefs now come
   from `ActivityPub::TagManager.instance.uri_for`. Under v4.7's default `id_scheme:
-numeric_ap_id` that href is `https://host/ap/accounts/<id>`, **not** `https://host/users/<name>`
+numeric_ap_id` that href is `https://host/ap/users/<id>`, **not** `https://host/users/<name>`
   — so the "real" document the Forge offers a student as a starting point no longer looks like the
   fork's canonical example, and a blob copied from the old academy will disagree with the actor it
   points at. Acceptable for a forge (inconsistency is the lesson) and **fixed for free by Cluster
@@ -364,3 +364,33 @@ Two things follow for later clusters:
 - That generated example calls `Fabricate.times(2, …)` — **two** records — specifically to catch
   uniqueness collisions. A fabricator with a constant value in a unique column fails there and
   nowhere else. `web_finger_override`'s `value` derives from the account, so it is fine.
+
+### 14. `id_scheme` mitigation verified empirically (do this before Cluster 4, not during)
+
+Risk 1 in the plan was reasoned from source. It is now measured, against a live console in the
+devcontainer inside a rolled-back transaction:
+
+```
+new Account default id_scheme: "numeric_ap_id"
+assignable via Account.new:    "username_ap_id"
+assignable via nested attrs:   "username_ap_id"
+uri_for(username_ap_id) -> http://localhost:3000/users/probeu487068
+uri_for(numeric_ap_id)  -> http://localhost:3000/ap/users/117262265591683233
+```
+
+All three links in the chain hold: new accounts default to the numeric scheme, the numeric URI does
+**not** match the fork's four `https://#{domain}/users/([^/]*)` audience regexes, and `id_scheme` is
+assignable through **nested attributes** — which is exactly how the academy signup's
+`build_resource` writes `hash["account_attributes"]`. So Cluster 4's one-line mitigation lands on a
+path that works.
+
+**Correction:** earlier notes (and an earlier version of the plan) said the numeric path was
+`/ap/accounts/<id>`. It is `/ap/users/<id>`. That string appears in the Phase 3 smoke test, so it
+matters.
+
+### 15. `rails runner` needs a Chewy strategy when saving records
+
+`ES_ENABLED=true` in the devcontainer, so any `bin/rails runner` that saves an indexed model raises
+`Chewy::UndefinedUpdateStrategy` rather than a validation error — which reads as a model problem
+until you look closely. Wrap in `Chewy.strategy(:bypass) { ... }`. Specs are unaffected;
+`spec_helper.rb` already does this suite-wide.
