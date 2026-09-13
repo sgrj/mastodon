@@ -18,7 +18,8 @@ RSpec.describe 'Home page' do
   end
 
   context 'when not signed in' do
-    it 'visits the homepage and renders the web app' do
+    it 'visits the homepage and renders the web app', academy: :disabled,
+                                                      reason: 'the fork redirects anonymous visitors from / to /auth/sign_up rather than serving the web app, so nothing renders for a logged-out browser (HomeController#index)' do
       visit root_path
 
       expect(page)
@@ -26,12 +27,19 @@ RSpec.describe 'Home page' do
         .and have_css('body', class: 'app-body')
     end
 
+    it 'visits the homepage and is sent to the academy sign-up page' do
+      visit root_path
+
+      expect(page).to have_current_path('/auth/sign_up')
+    end
+
     context 'when the landing page is set to about' do
       before do
         Setting.landing_page = 'about'
       end
 
-      it 'visits the root path and is redirected to the about page', :js do
+      it 'visits the root path and is redirected to the about page', :js, academy: :disabled,
+                                                                          reason: 'the fork redirects anonymous visitors from / to /auth/sign_up before the JS app loads, and the landing-page setting is only applied by the JS app (HomeController#index)' do
         visit root_path
 
         expect(page).to have_current_path('/about')

@@ -1,0 +1,10 @@
+- content_for :header_tags do
+  = vite_typescript_tag 'public.tsx', crossorigin: 'anonymous'
+
+- content_for :content do
+  .academy-signup-container
+    = render 'flashes'
+
+    = yield
+
+= render template: 'layouts/application'

@@ -190,7 +190,8 @@ RSpec.describe Auth::RegistrationsController do
         post :create, params: { user: { account_attributes: { username: 'test' }, email: 'test@example.com', password: '12345678', password_confirmation: '12345678', agreement: 'true' } }
       end
 
-      it 'redirects to setup and creates user' do
+      it 'redirects to setup and creates user', academy: :disabled,
+                                                reason: 'the fork redirects straight at the confirmation link of the new user instead of auth_setup_path, so the instance needs no mail server, and build_resource discards the submitted e-mail (Auth::RegistrationsController)' do
         subject
 
         expect(response)
@@ -226,7 +227,8 @@ RSpec.describe Auth::RegistrationsController do
         Fabricate(:email_domain_block, allow_with_approval: true, domain: 'example.com')
       end
 
-      it 'creates unapproved user and redirects to setup' do
+      it 'creates unapproved user and redirects to setup', academy: :disabled,
+                                                           reason: 'the fork redirects straight at the confirmation link of the new user instead of auth_setup_path, so the instance needs no mail server, and build_resource discards the submitted e-mail (Auth::RegistrationsController)' do
         subject
         expect(response).to redirect_to auth_setup_path
 
@@ -250,7 +252,8 @@ RSpec.describe Auth::RegistrationsController do
         configure_mx(domain: 'example.com', exchange: 'mail.example.com')
       end
 
-      it 'creates unapproved user and redirects to setup' do
+      it 'creates unapproved user and redirects to setup', academy: :disabled,
+                                                           reason: 'the fork redirects straight at the confirmation link of the new user instead of auth_setup_path, so the instance needs no mail server, and build_resource discards the submitted e-mail (Auth::RegistrationsController)' do
         subject
         expect(response).to redirect_to auth_setup_path
 
@@ -271,7 +274,8 @@ RSpec.describe Auth::RegistrationsController do
         Fabricate(:account, username: 'test')
       end
 
-      it 'responds with an error message about the username' do
+      it 'responds with an error message about the username', academy: :disabled,
+                                                              reason: 'the fork generates the username in build_resource and discards the submitted one, so a username the client picked can never collide with an existing account (Auth::RegistrationsController#build_resource)' do
         subject
 
         expect(response).to have_http_status(:success)

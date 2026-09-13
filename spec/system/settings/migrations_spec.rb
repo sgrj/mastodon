@@ -42,10 +42,20 @@ RSpec.describe 'Settings Migrations' do
       let(:acct) { Fabricate(:account, also_known_as: [ActivityPub::TagManager.instance.uri_for(user.account)]) }
 
       context 'when user has encrypted password' do
-        it 'updates moved to account' do
+        it 'updates moved to account', academy: :disabled,
+                                       reason: 'the fork drops the password/username challenge from account moves, because generated academy passwords are never shown to the student (AccountMigration#save_with_challenge, Form::Redirect#valid_with_challenge?)' do
           visit settings_migration_path
 
           expect { fill_in_and_submit }
+            .to(change { user.account.reload.moved_to_account_id }.to(acct.id))
+          expect(page)
+            .to have_text(I18n.t('settings.migrate'))
+        end
+
+        it 'updates moved to account without asking for a challenge' do
+          visit settings_migration_path
+
+          expect { fill_in_acct_and_submit }
             .to(change { user.account.reload.moved_to_account_id }.to(acct.id))
           expect(page)
             .to have_text(I18n.t('settings.migrate'))
@@ -55,7 +65,8 @@ RSpec.describe 'Settings Migrations' do
       context 'when user has blank encrypted password value' do
         before { user.update! encrypted_password: '' }
 
-        it 'updates moved to account using at-username value' do
+        it 'updates moved to account using at-username value', academy: :disabled,
+                                                               reason: 'the fork drops the password/username challenge from account moves, because generated academy passwords are never shown to the student (AccountMigration#save_with_challenge, Form::Redirect#valid_with_challenge?)' do
           visit settings_migration_path
 
           expect { fill_in_and_submit_via_username("@#{user.account.username}") }
@@ -69,7 +80,8 @@ RSpec.describe 'Settings Migrations' do
     context 'when acct is the current account' do
       let(:acct) { user.account }
 
-      it 'does not update the moved account', :aggregate_failures do
+      it 'does not update the moved account', :aggregate_failures, academy: :disabled,
+                                                                   reason: 'the fork drops the password/username challenge from account moves, because generated academy passwords are never shown to the student (AccountMigration#save_with_challenge, Form::Redirect#valid_with_challenge?)' do
         visit settings_migration_path
 
         expect { fill_in_and_submit }
@@ -82,7 +94,8 @@ RSpec.describe 'Settings Migrations' do
     context 'when target account does not reference the account being moved from' do
       let(:acct) { Fabricate(:account, also_known_as: []) }
 
-      it 'does not update the moved account', :aggregate_failures do
+      it 'does not update the moved account', :aggregate_failures, academy: :disabled,
+                                                                   reason: 'the fork drops the password/username challenge from account moves, because generated academy passwords are never shown to the student (AccountMigration#save_with_challenge, Form::Redirect#valid_with_challenge?)' do
         visit settings_migration_path
 
         expect { fill_in_and_submit }
@@ -104,6 +117,11 @@ RSpec.describe 'Settings Migrations' do
         expect(find_by_id('account_migration_acct'))
           .to be_disabled
       end
+    end
+
+    def fill_in_acct_and_submit
+      fill_in 'account_migration_acct', with: acct.username
+      click_on I18n.t('migrations.proceed_with_move')
     end
 
     def fill_in_and_submit

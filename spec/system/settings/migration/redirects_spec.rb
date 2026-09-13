@@ -10,7 +10,8 @@ RSpec.describe 'Settings Migration Redirects' do
   describe 'Managing redirects' do
     before { stub_resolver }
 
-    it 'creates and destroys redirects' do
+    it 'creates and destroys redirects', academy: :disabled,
+                                         reason: 'the fork drops the password/username challenge from account moves, because generated academy passwords are never shown to the student (AccountMigration#save_with_challenge, Form::Redirect#valid_with_challenge?)' do
       visit new_settings_migration_redirect_path
       expect(page)
         .to have_title(I18n.t('settings.migrate'))
@@ -32,10 +33,19 @@ RSpec.describe 'Settings Migration Redirects' do
         .to have_text(I18n.t('migrations.cancelled_msg'))
     end
 
+    it 'creates a redirect without a challenge' do
+      visit new_settings_migration_redirect_path
+
+      fill_in 'form_redirect_acct', with: 'new@example.host'
+      expect { click_on I18n.t('migrations.set_redirect') }
+        .to(change { user.reload.account.moved_to_account_id }.from(nil))
+    end
+
     context 'when user has blank encrypted password' do
       before { user.update! encrypted_password: '' }
 
-      it 'saves a redirect via username confirmation' do
+      it 'saves a redirect via username confirmation', academy: :disabled,
+                                                       reason: 'the fork drops the password/username challenge from account moves, because generated academy passwords are never shown to the student (AccountMigration#save_with_challenge, Form::Redirect#valid_with_challenge?)' do
         visit new_settings_migration_redirect_path
 
         fill_in 'form_redirect_acct', with: 'new@example.host'

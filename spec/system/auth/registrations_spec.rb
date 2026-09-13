@@ -2,7 +2,8 @@
 
 require 'rails_helper'
 
-RSpec.describe 'Auth Registration' do
+RSpec.describe 'Auth Registration', academy: :disabled,
+                                    reason: 'academy sign-up is one click: new.html.haml has no username, e-mail, password, date-of-birth or invite-request field and no preamble or invited-by card. spec/requests/academy_signup_spec.rb covers the replacement flow' do
   context 'when there are server rules' do
     let!(:rule) { Fabricate :rule, text: 'You must be seven meters tall' }
     let!(:rule_translation) { Fabricate :rule_translation, rule:, hint: 'Rule translation hint', text: rule.text }

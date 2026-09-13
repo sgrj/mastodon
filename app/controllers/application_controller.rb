@@ -94,7 +94,9 @@ class ApplicationController < ActionController::Base
     if ENV['OMNIAUTH_ONLY'] == 'true' && Rails.configuration.x.omniauth.oidc_enabled?
       '/auth/auth/openid_connect/logout'
     else
-      new_user_session_path
+      # There is no sign-in form worth showing: academy accounts are one-click and
+      # disposable, so signing out means starting a new one.
+      new_user_registration_path
     end
   end
 

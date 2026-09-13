@@ -10,7 +10,8 @@ RSpec.describe 'Log out' do
   end
 
   describe 'Logging out from the preferences' do
-    it 'logs the user out' do
+    it 'logs the user out', academy: :disabled,
+                            reason: 'the fork sends signed-out users to /auth/sign_up rather than the sign-in form, because academy accounts are one-click and disposable (ApplicationController#after_sign_out_path_for)' do
       visit settings_path
 
       within '.sidebar' do
@@ -24,7 +25,8 @@ RSpec.describe 'Log out' do
   end
 
   describe 'Logging out from the JS app', :js, :streaming do
-    it 'logs the user out' do
+    it 'logs the user out', academy: :disabled,
+                            reason: 'the fork sends signed-out users to /auth/sign_up rather than the sign-in form, because academy accounts are one-click and disposable (ApplicationController#after_sign_out_path_for)' do
       # The frontend tries to load announcements after a short delay, but the session might be expired by then, and the browser will output an error.
       ignore_js_error(/Failed to load resource: the server responded with a status/)
 

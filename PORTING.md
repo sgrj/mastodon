@@ -28,7 +28,7 @@ One cluster per session, one commit per cluster. Update this file before stoppin
 - [x] 1 — Ops & config
 - [x] 2 — WebFingerOverride
 - [x] 3 — Actor type (backend half only)
-- [ ] 4 — Academy signup ← **must set `id_scheme: :username_ap_id`**
+- [x] 4 — Academy signup (sets `id_scheme: :username_ap_id`)
 - [ ] 5 — Activity Log pipeline
 - [ ] 6 — Activity Workshop
 - [ ] 7 — ActivityPub Explorer
@@ -59,6 +59,36 @@ One cluster per session, one commit per cluster. Update this file before stoppin
   listed after `:bot` — so a client sending both gets the explicit `actor_type`, and
   `Account#bot=` (which writes `Service`/`Person` into the same column) is overwritten
   rather than overwriting. Keep that ordering if the list is ever reshuffled.
+- **`configure_sign_up_params` is left exactly as upstream wrote it.** The fork also permitted
+  `:actor_type` at the top level and inside `account_attributes`. Neither is needed and one is
+  harmful: `build_resource` overwrites `hash['account_attributes']` wholesale _after_
+  `devise_parameter_sanitizer.sanitize(:sign_up)` has run, so the generated `username`,
+  `display_name`, `actor_type` and `id_scheme` never pass through the filter at all. Meanwhile
+  `User` has no `actor_type` attribute — `User.new(actor_type: 'Person')` raises
+  `ActiveModel::UnknownAttributeError` (verified in a console), so permitting it at the top level
+  turns a stray `user[actor_type]` parameter into a 500. Not ported.
+
+- **The two `@@` name generators became constants plus a `Mutex`.** Same two generators, same
+  `generate_name`, same output — see Surprise 21 for why the lock is not optional.
+
+- **`HomeController#index` keeps upstream's `expires_in` on the anonymous redirect.** The fork
+  dropped v4.1's `expires_in 0, public: true` because it had nothing to cache; v4.7 caches `/` for
+  real, and `spec/requests/cache_spec.rb` asserts it for `/`, `/explore`, `/public` and
+  `/directory` — all of which route to `home#index`. The redirect is identical for every anonymous
+  visitor and `WebAppControllerConcern` already declares `vary_by 'Accept, Accept-Language,
+Cookie'`, so caching it is correct. Upstream's own `redirect_unauthenticated_to_permalinks!`
+  caches its redirect exactly this way.
+
+- **`app/controllers/auth/roman.txt` stays inside `app/controllers/auth/`.** Zeitwerk only
+  considers `.rb` files when it builds the autoload map, so a `.txt` in an eager-load path is
+  ignored rather than an error. Checked: the suite eager-loads clean and the constant that reads it
+  is evaluated once at class-body time.
+
+- **`app/javascript/images/academy-mascot.webp` came over with this cluster,** because
+  `auth/registrations/new.html.haml` renders it. `config/vite/plugin-assets-manifest.ts` globs
+  `{fonts,icons,images}/**/*`, so no entrypoint registration is needed — but see Surprise 20 about
+  the rebuild.
+
 - **`activitypub-visualization` 2.0.0** (React 19, React as a webpack external) was published
   2026-09-08 and verified on the Hugo blog. Phase 2 bumps the pin from 1.5.1.
 - **Mail delivery is configured by environment, not by patching `config/environments/`.**
@@ -461,3 +491,116 @@ serialize as **`Service`** (upstream collapses it through `bot?`). The fork publ
   `config/routes.rb:113`), so the actor document is reachable by name even under v4.7's default
   `numeric_ap_id` scheme — `AccountsController#show`'s `format.json` serves it either way. The
   spec uses `account_path` so it does not depend on `LOCAL_DOMAIN`.
+
+### 19. Devise 5 did not change the calling convention `build_resource` depends on
+
+**Assumed:** Devise 4.8 → 5.0.4 might have changed how `create` hands parameters to
+`build_resource`, which would break the fork's central hack — it mutates the params hash _before_
+calling `super`.
+
+**Actually:** unchanged, and checked in the installed gem rather than from memory
+(`/usr/local/bundle/gems/devise-5.0.4`):
+
+- `Devise::RegistrationsController#create` is still `build_resource(sign_up_params)`.
+- `sign_up_params` is still `devise_parameter_sanitizer.sanitize(:sign_up)`, and
+  `ParameterSanitizer#sanitize` still ends in `cast_to_hash(params)` → `params && params.to_h`.
+  `ActionController::Parameters#to_h` returns an `ActiveSupport::HashWithIndifferentAccess`, so the
+  object `build_resource` receives is a **plain mutable hash, already past strong parameters** —
+  which is exactly why writing `hash['account_attributes']` works and needs no permit entry.
+- `Devise::RegistrationsController#build_resource(hash = {})` is `resource_class.new_with_session(hash, session)`.
+  Upstream Mastodon declares `build_resource(hash = nil)` and calls bare `super`, which forwards the
+  same (possibly mutated) object. `new_with_session(nil, …)` → `User.new(nil)` is fine, so the
+  `unless hash.nil?` guard still distinguishes `new` from `create`.
+
+**Cost:** 15 minutes of reading, no code. Worth stating because the hack looks fragile and is not.
+
+### 20. `auto_build` does not rebuild for a _missing entry_ — only for a missing manifest
+
+**Assumed:** `config/vite.yml`'s `test:` block has `auto_build: true`, so adding
+`app/javascript/images/academy-mascot.webp` and referencing it with `frontend_asset_path` would
+just work in the suite.
+
+**Actually:** `lib/vite/manifest.rb#load` only retries the build when reading the manifest raises
+`Errno::ENOENT`. A manifest that exists but lacks your entry goes straight to
+`Vite::Manifest::MissingEntryError`, and three examples failed with
+`Failed to find entry 'images/academy-mascot.webp' in manifest files`. Fixed by running
+`yarn build:production` in the devcontainer once (22s).
+
+**So: after adding or renaming anything under `app/javascript/{fonts,icons,images}`, rebuild by
+hand** — `docker compose -f .devcontainer/compose.yaml exec app bash -lc 'yarn build:production'`.
+Clusters 6, 7 and 9 all add assets. `public/packs/` is gitignored, so this is a local step, not a
+commit.
+
+### 21. The `@@` generators are a real race, and the gem makes it worse than it looks
+
+**Assumed** (Risk 4 in the plan): `@@first_name_generator` / `@@last_name_generator` on a
+controller class are "fork-local fragility to re-check".
+
+**Actually:** reading `random_name_generator-4.0.5`, `Generator#compose_array` starts with
+`@pre = pre_syllables.sample(random: @rnd)` — it **writes instance state on every call** — and
+draws every syllable from `@rnd`, a plain `Random`, which MRI does not document as thread-safe.
+Both generators are process-wide. Under Puma with several threads, two simultaneous sign-ups share
+one `@pre` and one unsynchronised PRNG. The GVL keeps it from corrupting memory, so the realistic
+failure is two students getting the same name — which surfaces as the username-collision error the
+fork's own comment describes, only more often than "after > 1k users".
+
+Fixed without changing the feature: the two generators are now constants and `generate_name` wraps
+both `compose(3)` calls in one `Mutex#synchronize`. Composing a name is microseconds and happens
+once per sign-up, so the lock costs nothing. Output, syllable files and collision behaviour are
+unchanged.
+
+**Also noted while there:** `RandomNameGenerator::FANTASY` and friends are module-level `File`
+objects shared by every generator in the process, and `Generator#refresh` does `readlines` +
+`rewind` on them. That is only reached from `initialize`, which happens once at class-body
+evaluation, so it is not a runtime hazard here — but do not construct these generators per request.
+
+### 22. The academy breaks 33 upstream examples, not 11 — and `spec/system/` holds most of them
+
+**Assumed:** the fork tagged 11 examples across `registrations_controller_spec.rb`,
+`sessions_controller_spec.rb` and `home_controller_spec.rb`, so the port would tag about 11.
+
+**Actually: 33 upstream examples failed, across 10 files, and one of the fork's three files no
+longer exists.** `spec/controllers/home_controller_spec.rb` is gone entirely; upstream has migrated
+most of this coverage into `spec/requests/` and `spec/system/`. Of the 33, **4 were a mistake of
+mine** (`cache_spec.rb`, fixed by keeping `expires_in` — see Decisions) and 29 are genuine. Three
+further examples that genuinely break are `:js`/`:streaming` and so never ran; they are tagged
+anyway. **Cluster 4 therefore tags 32 examples, 33 project-wide with Cluster 3's.** Breakdown:
+
+| File                                                     | Count | What diverges                                                                                                      |
+| -------------------------------------------------------- | ----- | ------------------------------------------------------------------------------------------------------------------ |
+| `spec/system/auth/registrations_spec.rb`                 | 11    | The whole file drives the multi-field sign-up form. Tagged at the `RSpec.describe` level.                          |
+| `spec/system/settings/migrations_spec.rb`                | 4     | `fill_in_and_submit` fills `account_migration_current_password`, a field the fork deletes.                         |
+| `spec/system/settings/migration/redirects_spec.rb`       | 2     | Same, for `form_redirect_current_password` / `_current_username`.                                                  |
+| `spec/controllers/auth/registrations_controller_spec.rb` | 4     | `auth_setup_path` redirect, submitted-e-mail lookup, username collision.                                           |
+| `spec/controllers/auth/sessions_controller_spec.rb`      | 3     | Sign-out destination.                                                                                              |
+| `spec/requests/log_out_spec.rb`                          | 2     | Sign-out destination, HTML and JSON.                                                                               |
+| `spec/system/log_out_spec.rb`                            | 2     | Sign-out destination (one is `:js`).                                                                               |
+| `spec/requests/content_security_policy_spec.rb`          | 1     | `GET /` no longer renders a view, so the app layout never contributes its inline-script `sha256-` to `script-src`. |
+| `spec/system/home_spec.rb`                               | 2     | Anonymous `/` renders nothing (one is `:js`, for the landing-page setting, which only the JS app applies).         |
+| `spec/system/unlogged_spec.rb`                           | 1     | `:js, :streaming`, so excluded by default — tagged anyway, because it genuinely breaks.                            |
+
+Untagged siblings asserting the fork's behaviour were added in `log_out_spec.rb` (both HTML and
+JSON), `home_spec.rb`, `content_security_policy_spec.rb` (same header list, asserted on
+`/auth/sign_up`, which does render) and both migration system specs. The registration files get no
+sibling: `spec/requests/academy_signup_spec.rb` covers that flow end to end.
+
+**Three near-misses worth recording:**
+
+- `spec/requests/cache_spec.rb` initially failed for `/`, `/explore`, `/public` and `/directory` —
+  **all four route to `home#index`** — because the fork's `redirect_to` dropped the `expires_in`.
+  Keeping it (see Decisions) is both closer to upstream and closer to the fork's intent.
+- The CSP sibling on `/auth/sign_up` cannot assert upstream's whole header list: being a form page
+  it relaxes `form-action` from `'none'` to `'self'`. It asserts `script-src` only, which is the
+  directive the divergence is actually about.
+- `spec/controllers/auth/registrations_controller_spec.rb:253` fails with a _stubbed MX_ mismatch
+  (`expected ("mail.example.com", …), got ("cb6e6126.ngrok.io", …)`), not an assertion failure. The
+  generated address is `<username>@<web_domain>`, so the e-mail-domain-block fixtures in that file
+  can never match. Same root cause, different symptom.
+
+### 23. The fork's own `academy_signup_spec.rb` could never have passed as written
+
+`config/settings.yml` ships `registrations_mode: 'none'` at **both** v4.1.18 and on the fork branch
+— the academy opens registrations in its production database, not in the repo. So
+`check_enabled_registrations` redirects before `create` is ever reached, and every example in the
+fork's `spec/requests/academy_signup_spec.rb` would have failed. Ported with
+`before { Setting.registrations_mode = 'open' }` added. Nothing else in the file needed changing.

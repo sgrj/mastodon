@@ -2,7 +2,8 @@
 
 require 'rails_helper'
 
-RSpec.describe 'UnloggedBrowsing', :js, :streaming do
+RSpec.describe 'UnloggedBrowsing', :js, :streaming, academy: :disabled,
+                                                    reason: 'the fork redirects anonymous visitors from / to /auth/sign_up rather than serving the web app, so nothing renders for a logged-out browser (HomeController#index)' do
   subject { page }
 
   before do

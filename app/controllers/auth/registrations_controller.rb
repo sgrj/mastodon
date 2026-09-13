@@ -1,8 +1,32 @@
 # frozen_string_literal: true
 
+require 'random_name_generator'
+require 'securerandom'
+
 class Auth::RegistrationsController < Devise::RegistrationsController
   include RegistrationHelper
   include Auth::RegistrationSpamConcern
+
+  # ActivityPub.Academy accounts are throwaway teaching accounts: sign-up is one click,
+  # with no username, e-mail or password field. The controller invents all three.
+  ACADEMY_ACTOR_TYPE = 'Person'
+
+  # v4.7 added `accounts.id_scheme` and defaults *new* rows to `numeric_ap_id`, which
+  # publishes actor URIs as /ap/users/<id>. The Activity Log resolves its audience with
+  # /users/<username> regexes, so under the default it is silently empty for every
+  # account created after the upgrade. Pin the username scheme at creation time.
+  ACADEMY_ID_SCHEME = 'username_ap_id'
+
+  ROMAN_SYLLABLES = Rails.root.join('app', 'controllers', 'auth', 'roman.txt')
+
+  FIRST_NAME_GENERATOR = RandomNameGenerator.new(File.new(ROMAN_SYLLABLES))
+  LAST_NAME_GENERATOR  = RandomNameGenerator.new(RandomNameGenerator::FANTASY)
+
+  # `RandomNameGenerator::Generator#compose` is not thread-safe: every call writes `@pre`
+  # and draws from an unsynchronised `Random`, and both generators above are process-wide,
+  # shared by every Puma thread. Composing a name takes microseconds and happens once per
+  # sign-up, so one mutex around both calls costs nothing.
+  NAME_GENERATOR_LOCK = Mutex.new
 
   layout :determine_layout
 
@@ -50,6 +74,8 @@ class Auth::RegistrationsController < Devise::RegistrationsController
   end
 
   def build_resource(hash = nil)
+    generate_academy_credentials!(hash) unless hash.nil?
+
     super
 
     resource.locale                 = I18n.locale
@@ -66,8 +92,10 @@ class Auth::RegistrationsController < Devise::RegistrationsController
     end
   end
 
-  def after_sign_up_path_for(_resource)
-    auth_setup_path
+  def after_sign_up_path_for(resource)
+    # Visit the new user's own confirmation link instead of mailing it: the academy runs
+    # without a mail server, and its accounts are disposable anyway.
+    user_confirmation_path(confirmation_token: resource.confirmation_token)
   end
 
   def after_sign_in_path_for(_resource)
@@ -110,7 +138,41 @@ class Auth::RegistrationsController < Devise::RegistrationsController
   end
 
   def determine_layout
-    %w(edit update).include?(action_name) ? 'admin' : 'auth'
+    case action_name
+    when 'edit', 'update'
+      'admin'
+    when 'new'
+      'academy-signup'
+    else
+      'auth'
+    end
+  end
+
+  def generate_academy_credentials!(hash)
+    display_name = generate_name
+    username     = display_name.parameterize(separator: '_')
+    password     = SecureRandom.hex
+
+    # Written straight into the already-sanitised params, so these bypass
+    # `configure_sign_up_params` entirely and nothing here needs permitting.
+    hash['account_attributes'] = {
+      'username' => username,
+      'display_name' => display_name,
+      'actor_type' => ACADEMY_ACTOR_TYPE,
+      'id_scheme' => ACADEMY_ID_SCHEME,
+    }
+    hash['email'] = "#{username}@#{Rails.configuration.x.web_domain}"
+    hash['password'] = password
+    hash['password_confirmation'] = password
+  end
+
+  # On a name collision the student is shown "Something isn't quite right yet!" and signing
+  # up again almost always succeeds. Collisions only start at ~1k accounts, and accounts are
+  # deleted after a day, so this is not worth solving.
+  def generate_name
+    NAME_GENERATOR_LOCK.synchronize do
+      "#{FIRST_NAME_GENERATOR.compose(3)} #{LAST_NAME_GENERATOR.compose(3)}"
+    end
   end
 
   def set_sessions

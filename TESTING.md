@@ -32,6 +32,19 @@ docker compose -f .devcontainer/compose.yaml exec app \
   git config --global --add safe.directory /workspaces/mastodon
 ```
 
+### After adding a frontend asset
+
+`config/vite.yml`'s `test:` block sets `auto_build: true`, but that only triggers when the
+manifest file is **missing**. An entry that is missing from an existing manifest raises
+`Vite::Manifest::MissingEntryError` and the suite simply fails. After adding or renaming anything
+under `app/javascript/{fonts,icons,images}`, rebuild once by hand:
+
+```sh
+docker compose -f .devcontainer/compose.yaml exec app bash -lc 'yarn build:production'
+```
+
+`public/packs/` is gitignored, so this is a local step.
+
 ### Parallel runs
 
 The full suite serially is slow. Upstream's CI uses flatware, and so can we:
@@ -55,6 +68,10 @@ Deliberately not started. `:search` specs are excluded by default, along with `:
 ## Baseline
 
 **v4.7.1 unmodified: 7646 examples, 0 failures, 2 pending.**
+
+After clusters 1–4: **7662 examples, 0 failures, 2 pending.** Cluster 4 adds 19 examples and
+excludes 29 upstream ones (7672 + 19 − 29), so the run total goes _down_. See Surprise 13 in
+`PORTING.md`: each new fabricator silently adds one example on top of the specs you write.
 
 Re-establish this whenever the base version changes. Any failure after a cluster lands is
 ours — that unambiguity is the whole point of keeping the baseline green.
@@ -146,11 +163,25 @@ The plan expected this to arrive with the academy signup cluster (4). It was nee
 cluster early, in **Cluster 3**, and lives in `spec/rails_helper.rb` next to upstream's
 own exclusions.
 
-Currently tagged:
+Currently tagged — **33 examples in 11 files.** Every tag carries a `reason:`; run the command
+above to read them.
 
-| Example                                                                                                           | Reason                                                                                                                                                                                                                                                                         |
-| ----------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `spec/serializers/activitypub/actor_serializer_spec.rb` — `#type with an application actor serializes as Service` | The fork serializes the stored `actor_type` verbatim, so a non-instance account whose `actor_type` is `Application` is published as `Application`. Upstream collapses it into `Service` via `bot?`. The sibling example asserting the fork's behaviour sits directly below it. |
+| File                                                     | N   | Cluster | What diverges                                                                                                                                                                             |
+| -------------------------------------------------------- | --- | ------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `spec/serializers/activitypub/actor_serializer_spec.rb`  | 1   | 3       | The fork serializes the stored `actor_type` verbatim, so an `Application` account is published as `Application`; upstream collapses it into `Service` via `bot?`. Sibling directly below. |
+| `spec/system/auth/registrations_spec.rb`                 | 11  | 4       | Tagged at the `RSpec.describe` level: the whole file drives the multi-field sign-up form the academy replaces with one button.                                                            |
+| `spec/system/settings/migrations_spec.rb`                | 4   | 4       | The account-move challenge field is gone. Sibling: "updates moved to account without asking for a challenge".                                                                             |
+| `spec/controllers/auth/registrations_controller_spec.rb` | 4   | 4       | `auth_setup_path` redirect, lookup by submitted e-mail, username collision.                                                                                                               |
+| `spec/controllers/auth/sessions_controller_spec.rb`      | 3   | 4       | Sign-out goes to `/auth/sign_up`.                                                                                                                                                         |
+| `spec/requests/log_out_spec.rb`                          | 2   | 4       | Sign-out goes to `/auth/sign_up`. Siblings for both HTML and JSON.                                                                                                                        |
+| `spec/system/log_out_spec.rb`                            | 2   | 4       | Sign-out goes to `/auth/sign_up` (one is `:js`).                                                                                                                                          |
+| `spec/system/settings/migration/redirects_spec.rb`       | 2   | 4       | The redirect challenge field is gone. Sibling: "creates a redirect without a challenge".                                                                                                  |
+| `spec/system/home_spec.rb`                               | 2   | 4       | Anonymous `/` redirects to sign-up (one is `:js`, for the landing-page setting, which only the JS app applies). Sibling directly below.                                                   |
+| `spec/requests/content_security_policy_spec.rb`          | 1   | 4       | `GET /` no longer renders a view, so the app layout never adds its inline-script `sha256-` to `script-src`. Sibling asserts the same headers on `/auth/sign_up`.                          |
+| `spec/system/unlogged_spec.rb`                           | 1   | 4       | Anonymous browsing. `:js, :streaming`, so excluded by default anyway — tagged because it genuinely breaks.                                                                                |
+
+`spec/requests/academy_signup_spec.rb` is the untagged counterpart for the whole sign-up flow, so
+the registration files get no sibling of their own.
 
 ## After porting a cluster
 

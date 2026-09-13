@@ -16,15 +16,9 @@ class Form::Redirect
   normalizes :acct, with: ->(value) { value.to_s.strip.gsub(/\A@/, '') }, apply_to_nil: true
   normalizes :current_username, with: ->(value) { value.strip.delete_prefix('@') }
 
-  def valid_with_challenge?(current_user)
-    if current_user.encrypted_password.present?
-      errors.add(:current_password, :invalid) unless current_user.valid_password?(current_password)
-    else
-      errors.add(:current_username, :invalid) unless account.username == current_username
-    end
-
-    return false unless errors.empty?
-
+  # No challenge: academy passwords are generated at sign-up and never shown to the
+  # student, so there is nothing they could type back.
+  def valid_with_challenge?(_current_user)
     set_target_account
     valid?
   end

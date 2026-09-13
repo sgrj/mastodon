@@ -4,81 +4,54 @@
 - content_for :header_tags do
   = render partial: 'shared/og', locals: { description: description_for_sign_up(@invite) }
 
-= simple_form_for(resource, as: resource_name, url: registration_path(resource_name), html: { novalidate: false }) do |f|
-  = render 'auth/shared/progress', stage: 'details'
+.academy-introduction
+  %h1.title ActivityPub.Academy
+  %p.subtitle Explore the ActivityPub protocol interactively
 
-  %h1.title= t('auth.sign_up.title', domain: site_hostname)
-  %p.lead= t('auth.sign_up.preamble')
+  %p
+    ActivityPub.Academy is a learning resource for
+    = succeed '.' do
+      = link_to 'ActivityPub', 'https://www.w3.org/TR/activitypub/'
+    The protocol is brought to life by showing Activities sent between different instances in real time!
 
-  = render 'shared/error_messages', object: resource
+  %p Sign up for a fully functioning Mastodon account (accounts are deleted after one day, but you can always create a new one). Follow other accounts, create posts, boost &amp; like, and see the effects on the protocol visualized.
 
-  - if @invite.present? && @invite.autofollow?
-    .fields-group.invited-by
-      %p.hint= t('invites.invited_by')
-      = render 'application/card', account: @invite.user.account
+  %p
+    Learn more on my
+    = succeed '.' do
+      = link_to 'blog', 'https://seb.jambor.dev/posts/activitypub-academy/'
 
-  .fields-group
-    = f.simple_fields_for :account do |ff|
-      = ff.input :username,
-                 append: "@#{site_hostname}",
-                 input_html: { autocomplete: 'off', pattern: '[a-zA-Z0-9_]+', maxlength: Account::USERNAME_LENGTH_LIMIT },
-                 required: true,
-                 wrapper: :with_label
-    = f.input :email,
-              hint: false,
-              input_html: { autocomplete: 'username' },
-              required: true,
-              wrapper: :with_label
-    = f.input :password,
-              hint: false,
-              input_html: { autocomplete: 'new-password', minlength: User.password_length.first, maxlength: User.password_length.last },
-              required: true,
-              wrapper: :with_label
-    = f.input :password_confirmation,
-              hint: false,
-              input_html: { 'aria-label': t('simple_form.labels.defaults.confirm_password'), autocomplete: 'new-password', maxlength: User.password_length.last },
-              placeholder: t('simple_form.labels.defaults.confirm_password'),
-              required: true
-    = f.input :confirm_password,
-              as: :string,
-              hint: false,
-              input_html: { 'aria-label': t('simple_form.labels.defaults.honeypot', label: t('simple_form.labels.defaults.password')), autocomplete: 'off' },
-              placeholder: t('simple_form.labels.defaults.honeypot', label: t('simple_form.labels.defaults.password')),
-              required: false
-    = f.input :website,
-              as: :url,
-              input_html: { 'aria-label': t('simple_form.labels.defaults.honeypot', label: 'Website'), autocomplete: 'off' },
-              label: t('simple_form.labels.defaults.honeypot', label: 'Website'),
-              required: false,
-              wrapper: :with_label
+  = simple_form_for(resource, as: resource_name, url: registration_path(resource_name), html: { novalidate: false }) do |f|
+    = render 'shared/error_messages', object: resource
 
-  - if Setting.min_age.present?
+    -#
+      There is no username, e-mail or password field: Auth::RegistrationsController
+      generates all three. Only the two honeypots and the agreement remain.
     .fields-group
-      = f.input :date_of_birth,
-                as: :date_of_birth,
-                hint: t('simple_form.hints.user.date_of_birth', count: Setting.min_age.to_i, domain: site_hostname),
-                required: true,
-                wrapper: :with_block_label
+      = f.input :confirm_password,
+                as: :string,
+                hint: false,
+                input_html: { 'aria-label': t('simple_form.labels.defaults.honeypot', label: t('simple_form.labels.defaults.password')), autocomplete: 'off' },
+                placeholder: t('simple_form.labels.defaults.honeypot', label: t('simple_form.labels.defaults.password')),
+                required: false
+      = f.input :website,
+                as: :url,
+                input_html: { 'aria-label': t('simple_form.labels.defaults.honeypot', label: 'Website'), autocomplete: 'off' },
+                label: t('simple_form.labels.defaults.honeypot', label: 'Website'),
+                required: false,
+                wrapper: :with_label
 
-  - if approved_registrations? && !@invite&.bypass_approval?
+    = hidden_field_tag :accept, params[:accept]
+    = f.input :invite_code, as: :hidden
+
     .fields-group
-      = f.simple_fields_for :invite_request, resource.invite_request || resource.build_invite_request do |invite_request_fields|
-        = invite_request_fields.input :text,
-                                      as: :text,
-                                      hint: t('auth.sign_up.manual_review', domain: site_hostname),
-                                      input_html: { maxlength: UserInviteRequest::TEXT_SIZE_LIMIT },
-                                      required: Setting.require_invite_text,
-                                      wrapper: :with_block_label
+      = f.input :agreement,
+                as: :boolean,
+                label: terms_agreement_label,
+                required: false,
+                wrapper: :with_label
 
-  = hidden_field_tag :accept, params[:accept]
-  = f.input :invite_code, as: :hidden
+    .actions
+      = f.button :button, @invite&.bypass_approval? ? t('auth.register') : sign_up_message, type: :submit
 
-  .fields-group
-    = f.input :agreement,
-              as: :boolean,
-              label: terms_agreement_label,
-              required: false,
-              wrapper: :with_label
-
-  .actions
-    = f.button :button, @invite&.bypass_approval? ? t('auth.register') : sign_up_message, type: :submit
+= image_tag frontend_asset_path('images/academy-mascot.webp'), alt: 'The Mastodon mascot wearing a university gown', class: 'mascot'
