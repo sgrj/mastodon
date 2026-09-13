@@ -18,9 +18,12 @@ import BookmarksIcon from '@/material-icons/400-24px/bookmarks.svg?react';
 import CollectionsActiveIcon from '@/material-icons/400-24px/category-fill.svg?react';
 import CollectionsIcon from '@/material-icons/400-24px/category.svg?react';
 import CommentIcon from '@/material-icons/400-24px/comment.svg?react';
+import ContactMailIcon from '@/material-icons/400-24px/contact_mail.svg?react';
+import FindInPageIcon from '@/material-icons/400-24px/find_in_page.svg?react';
 import HomeActiveIcon from '@/material-icons/400-24px/home-fill.svg?react';
 import HomeIcon from '@/material-icons/400-24px/home.svg?react';
 import InfoIcon from '@/material-icons/400-24px/info.svg?react';
+import ManufacturingIcon from '@/material-icons/400-24px/manufacturing.svg?react';
 import NotificationsActiveIcon from '@/material-icons/400-24px/notifications-fill.svg?react';
 import NotificationsIcon from '@/material-icons/400-24px/notifications.svg?react';
 import PersonAddActiveIcon from '@/material-icons/400-24px/person_add-fill.svg?react';
@@ -115,6 +118,18 @@ const messages = defineMessages({
   logout: { id: 'navigation_bar.logout', defaultMessage: 'Logout' },
   compose: { id: 'tabs_bar.publish', defaultMessage: 'New Post' },
   activityLog: { id: 'column.activity_log', defaultMessage: 'Activity Log' },
+  activitypubExplorer: {
+    id: 'column.activitypub_explorer',
+    defaultMessage: 'ActivityPub Explorer',
+  },
+  activityWorkshop: {
+    id: 'column.activity_workshop',
+    defaultMessage: 'Activity Workshop',
+  },
+  webFingerForge: {
+    id: 'column.web_finger_forge',
+    defaultMessage: 'WebFinger Forge',
+  },
 });
 
 const NotificationsLink = () => {
@@ -349,6 +364,33 @@ export const NavigationPanel: React.FC<{ multiColumn?: boolean }> = ({
                 icon='comments'
                 iconComponent={CommentIcon}
                 text={intl.formatMessage(messages.activityLog)}
+              />
+            </li>
+            <li>
+              <ColumnLink
+                transparent
+                to='/activitypub_explorer'
+                icon='wpexplorer'
+                iconComponent={FindInPageIcon}
+                text={intl.formatMessage(messages.activitypubExplorer)}
+              />
+            </li>
+            <li>
+              <ColumnLink
+                transparent
+                to='/activity_workshop'
+                icon='wrench'
+                iconComponent={ManufacturingIcon}
+                text={intl.formatMessage(messages.activityWorkshop)}
+              />
+            </li>
+            <li>
+              <ColumnLink
+                transparent
+                to='/web_finger_forge'
+                icon='hand-pointer-o'
+                iconComponent={ContactMailIcon}
+                text={intl.formatMessage(messages.webFingerForge)}
               />
             </li>
             <li>

@@ -46,6 +46,18 @@ export function ActivityLog () {
   return import('../../activity_log');
 }
 
+export function ActivityPubExplorer () {
+  return import('../../activitypub_explorer');
+}
+
+export function ActivityWorkshop () {
+  return import('../../activity_workshop');
+}
+
+export function WebFingerForge () {
+  return import('../../web_finger_forge');
+}
+
 export function Collections() {
   return import('../../collections').then(
     module => ({default: module.Collections})

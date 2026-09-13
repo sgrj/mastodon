@@ -155,6 +155,13 @@ const hotkeyMatcherMap = {
   goToMuted: sequence('g', 'm'),
   goToRequests: sequence('g', 'r'),
   goToActivityLog: sequence('g', 'a'),
+  // The fork's own letters were `g e` for the Explorer and `g o` for the Forge.
+  // `g e` is upstream's `goToExplore`, and `o` is already `open`, so a `g o`
+  // sequence would fire both that and this. `w` -- the fork's Workshop letter --
+  // and `i` and `c` are bound to nothing at all.
+  goToActivityPubExplorer: sequence('g', 'i'),
+  goToActivityWorkshop: sequence('g', 'w'),
+  goToWebFingerForge: sequence('g', 'c'),
   cheat: sequence(
     'up',
     'up',

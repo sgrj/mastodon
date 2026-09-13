@@ -84,6 +84,9 @@ import {
   AccountEditFeaturedTags,
   Quotes,
   ActivityLog,
+  ActivityPubExplorer,
+  ActivityWorkshop,
+  WebFingerForge,
 } from './util/async-components';
 import { ColumnsContextProvider } from './util/columns_context';
 import { focusColumn, getFocusedItemIndex, focusItemSibling, focusFirstItem, getFocusedColumnIndex } from './util/focusUtils';
@@ -257,6 +260,9 @@ class SwitchingColumnsArea extends PureComponent {
             <WrappedRoute path='/lists' component={Lists} content={children} />
 
             <WrappedRoute path='/activity_log' component={ActivityLog} content={children} />
+            <WrappedRoute path='/activitypub_explorer' component={ActivityPubExplorer} content={children} />
+            <WrappedRoute path='/activity_workshop' component={ActivityWorkshop} content={children} />
+            <WrappedRoute path='/web_finger_forge' component={WebFingerForge} content={children} />
 
             <Route path='/overview' component={CustomHomepage} />
             <Route component={BundleColumnError} />
@@ -600,6 +606,18 @@ class UI extends PureComponent {
     this.props.history.push('/activity_log');
   };
 
+  handleHotkeyGoToActivityPubExplorer = () => {
+    this.props.history.push('/activitypub_explorer');
+  };
+
+  handleHotkeyGoToActivityWorkshop = () => {
+    this.props.history.push('/activity_workshop');
+  };
+
+  handleHotkeyGoToWebFingerForge = () => {
+    this.props.history.push('/web_finger_forge');
+  };
+
   render () {
     const { draggingOver } = this.state;
     const { children, isComposing, location, layout } = this.props;
@@ -630,6 +648,9 @@ class UI extends PureComponent {
       goToMuted: this.handleHotkeyGoToMuted,
       goToRequests: this.handleHotkeyGoToRequests,
       goToActivityLog: this.handleHotkeyGoToActivityLog,
+      goToActivityPubExplorer: this.handleHotkeyGoToActivityPubExplorer,
+      goToActivityWorkshop: this.handleHotkeyGoToActivityWorkshop,
+      goToWebFingerForge: this.handleHotkeyGoToWebFingerForge,
       cheat: this.handleDonate,
     };
 

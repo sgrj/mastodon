@@ -188,6 +188,18 @@ class KeyboardShortcuts extends ImmutablePureComponent {
                 <td><FormattedMessage id='keyboard_shortcuts.activity_log' defaultMessage='to open activity log' /></td>
               </tr>
               <tr>
+                <td><kbd>g</kbd>+<kbd>i</kbd></td>
+                <td><FormattedMessage id='keyboard_shortcuts.activitypub_explorer' defaultMessage='to open the ActivityPub Explorer' /></td>
+              </tr>
+              <tr>
+                <td><kbd>g</kbd>+<kbd>w</kbd></td>
+                <td><FormattedMessage id='keyboard_shortcuts.activity_workshop' defaultMessage='to open the Activity Workshop' /></td>
+              </tr>
+              <tr>
+                <td><kbd>g</kbd>+<kbd>c</kbd></td>
+                <td><FormattedMessage id='keyboard_shortcuts.web_finger_forge' defaultMessage='to open the WebFinger Forge' /></td>
+              </tr>
+              <tr>
                 <td><kbd>?</kbd></td>
                 <td><FormattedMessage id='keyboard_shortcuts.legend' defaultMessage='to display this legend' /></td>
               </tr>
