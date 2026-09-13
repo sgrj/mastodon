@@ -32,6 +32,20 @@ docker compose -f .devcontainer/compose.yaml exec app \
   git config --global --add safe.directory /workspaces/mastodon
 ```
 
+The same root-versus-uid-1000 split bites the frontend toolchain. `yarn typecheck` inside the
+container creates `tmp/cache/tsconfig.tsbuildinfo` owned by root, and the pre-commit hook runs
+`yarn tsc -p tsconfig.json --noEmit` on the **host** -- which then fails with
+`TS5033: Could not write file ... permission denied` and makes every commit that stages a `.ts` or
+`.tsx` file impossible. Hand it back once:
+
+```sh
+docker compose -f .devcontainer/compose.yaml exec app \
+  chown -R 1000:1000 /workspaces/mastodon/tmp/cache
+```
+
+tsc truncates the file in place rather than recreating it, so once it belongs to the host user it
+stays there. Do not use `--no-verify`.
+
 ### After adding a frontend asset
 
 `config/vite.yml`'s `test:` block sets `auto_build: true`, but that only triggers when the
@@ -101,6 +115,26 @@ tagged. `spec/presenters/instance_presenter_spec.rb` needed no change at all: v4
 covers `#source_url` with and without `GITHUB_REPOSITORY` (PORTING.md, Surprise 44).
 
 **Phase 1 is complete at this number.** See "Phase 1 complete" at the end of `PORTING.md`.
+
+Phase 2a (frontend: `activitypub-visualization` 2.0.0, the academy stylesheets, the Activity Log)
+leaves it at **7773 examples, 0 failures, 2 pending** — unchanged. Nothing under `app/javascript`
+has Ruby coverage, so a frontend cluster that moves this number has broken something. The frontend
+gates are separate and all four must pass:
+
+```sh
+docker compose -f .devcontainer/compose.yaml exec app bash -lc \
+  'yarn build:production && yarn typecheck && yarn lint:js'
+npx stylelint "app/javascript/styles/**/*.scss"   # see below -- not `yarn lint:css`
+```
+
+`yarn lint:css` reports ~2,500 errors on this checkout that have nothing to do with the fork: they
+are all in `foo/default-90ec0bff.chunk.css`, a stray untracked file at the repo root that
+`stylelint.config.js`'s `ignoreFiles` does not cover. Scope the glob to
+`app/javascript/styles/**/*.scss` to get a usable answer.
+
+Note also that **`.jsx` files are not linted** — `eslint.config.mjs` has no `files` glob that
+matches them, so ESLint 9 flat config skips them with "File ignored because no matching
+configuration was supplied" (PORTING.md, Surprise 50). Prefer `.ts`/`.tsx` for new frontend code.
 
 Re-establish this whenever the base version changes. Any failure after a cluster lands is
 ours — that unambiguity is the whole point of keeping the baseline green.

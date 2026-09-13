@@ -24,3 +24,11 @@
 @use 'mastodon/dashboard';
 @use 'mastodon/rtl';
 @use 'mastodon/rich_text';
+
+@use 'mastodon/academy';
+
+// The Activity Log renders <ActivityPubVisualization> from the fork's own npm
+// package; `style` in its package.json resolves this to
+// dist/activitypub-visualization.css. It ships without Tailwind's preflight, so
+// it cannot restyle the host page.
+@use 'activitypub-visualization';

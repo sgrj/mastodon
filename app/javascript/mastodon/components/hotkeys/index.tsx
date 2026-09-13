@@ -154,6 +154,7 @@ const hotkeyMatcherMap = {
   goToBlocked: sequence('g', 'b'),
   goToMuted: sequence('g', 'm'),
   goToRequests: sequence('g', 'r'),
+  goToActivityLog: sequence('g', 'a'),
   cheat: sequence(
     'up',
     'up',

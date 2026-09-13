@@ -35,9 +35,14 @@ One cluster per session, one commit per cluster. Update this file before stoppin
 - [x] 8 — Old account cleanup (the fork's scheduler was a no-op on v4.7.1; see Surprise 40)
 - [x] 9 — Branding & OG (`instance_presenter_spec.rb` needed nothing; see Surprise 44)
 - [ ] Phase 2 — Frontend
+  - [x] 2a — `activitypub-visualization` 2.0.0, stylesheets, Activity Log
+  - [ ] 2b — ActivityPub Explorer, Activity Workshop, WebFinger Forge
+  - [ ] 2c — `actor_type` in the React profile editor
 - [ ] Phase 3 — DB rehearsal + production cutover
 
 **Phase 1 is complete.** See "Phase 1 complete" at the end of this file.
+
+**Phase 2 is in progress.** See "Phase 2 status" below "Phase 1 complete".
 
 ## Decisions
 
@@ -280,6 +285,69 @@ skip_pipeline: true)` in `app/helpers/home_helper.rb` and
 - **`README.md` says v4.7.1 and points at `PORTING.md` as well as `TESTING.md`.** The fork's text
   is three sentences and is kept verbatim apart from the version number, which would otherwise
   claim the fork is still based on v4.1.18.
+
+### Phase 2a — dependency, stylesheets, Activity Log
+
+- **`activitypub-visualization` is pinned exactly, at `2.0.0`,** matching how every other
+  dependency in `package.json` is written on v4.7.1 (upstream dropped the `^` ranges the fork's
+  `1.5.1` sat among). No `optimizeDeps.include` was needed for it; see Surprise 48.
+
+- **The library's CSS is imported globally through `application.scss`, not from the component.**
+  `@use 'activitypub-visualization'` resolves through the package's `style` field, exactly as the
+  fork's `@import` did. Importing it from `features/activity_log/index.tsx` instead would scope it
+  to that async chunk, which is tidier — but the library ships four components and 2b adds three
+  more entry points for them, and a single global import is the one place to keep it. It is safe to
+  do globally because the library deliberately omits Tailwind's preflight.
+
+- **The academy's colours come from theme tokens now.** `--color-text-brand` for links (v4.1's
+  `$highlight-text-color`) and `--color-text-secondary` for body copy (`$darker-text-color`). Both
+  variables are gone from v4.7 (Surprise 49) and both had been hardcoded as hexes in the fork.
+
+- **New frontend files are `.ts`/`.tsx`; edits to upstream `.jsx` files stay `.jsx`.** Upstream
+  still ships plenty of `.jsx`, so converting for its own sake would only enlarge the diff — but
+  `.jsx` is neither linted nor typechecked on v4.7.1 (Surprise 50), so anything new goes in
+  TypeScript. That is also what lets `tsc` check `<ActivityPubVisualization>`'s props, which the
+  untyped 1.5.1 import could not.
+
+- **The Activity Log store is a plain object behind `createReducer`, not an Immutable `Map`.**
+  `reducers/index.ts` is TypeScript and builds the root state as an `ImmutableRecord` of whatever
+  each slice returns, so a plain-object slice registers exactly like upstream's own
+  `navigationReducer` and `useAppSelector(state => state.activity_log.logs)` is typed end to end.
+  The fork's `ImmutableMap({ logs: [] })` held a mutable JS array inside an Immutable Map anyway.
+
+- **The log entry type is re-exported from the library, not restated.**
+  `mastodon/models/activity_log.ts` is one line: `export type { ILogEvent as ActivityLogEvent }`.
+  The wire format has three owners — `app/lib/activity_log_event.rb` writes it, the SSE carries it,
+  and `<ActivityPubVisualization>` renders it — and taking the type from the renderer makes a
+  mismatch a compile error rather than an empty column.
+
+- **The SSE connection lives in `containers/mastodon.jsx`, as it did in the fork.** It is opened
+  once for the session rather than when the column mounts, so activities that happen while the
+  student is looking at a timeline are still in the store when they switch to the log. The store is
+  the only buffer; `componentWillUnmount` closes the stream and dispatches `resetActivityLog()`.
+
+- **The Explorer and Workshop link-outs are deliberately left unwired.**
+  `clickableLinks`/`onLinkClick`, `showExplorerLink` and `showWorkshopLink` are all optional props
+  of `<ActivityPubVisualization>`. Wiring them now would need `actions/activitypub_explorer` and
+  `actions/activity_workshop`, plus SPA routes that do not exist until 2b — every such link would
+  land on `BundleColumnError`. There is a comment in `features/activity_log/index.tsx` saying so.
+  **2b's first edit is to that file.**
+
+- **`goToActivityLog` is registered in upstream's `hotkeyMatcherMap`.** It has to be: the map is
+  closed and `as const`, and handler names are typechecked against it (Surprise 51). `g`+`a` is
+  free. Note for 2b: the fork wanted `g`+`e` for the Explorer, and v4.7 has already given that to
+  `goToExplore`.
+
+- **Signed-in `/` redirects to `/activity_log`, and upstream's forced onboarding is removed with
+  it** — `forceOnboarding`, `firstLaunch`, `newAccount` and the `INTRODUCTION_VERSION` import are
+  all gone, because `rootRedirect` was their only consumer. See Surprise 53.
+
+- **New message ids are extracted into `app/javascript/mastodon/locales/en.json`.** The fork relied
+  on `defaultMessage` alone, but `lint-staged.config.js` runs `yarn i18n:extract` followed by
+  `git diff --exit-code` on that file, so an unextracted message fails the pre-commit hook. Four
+  ids: `column.activity_log`, `dismissable_banner.activity_log_information`,
+  `dismissable_banner.activity_log_clear`, `empty_column.activity_log`, plus
+  `keyboard_shortcuts.activity_log`.
 
 ## Surprises
 
@@ -1334,6 +1402,165 @@ Suite: **7773 → 7773**. No new examples, no fabricator, nothing newly tagged `
 presentation and one binary swap, and the one spec file in scope needed no change at all
 (Surprise 44).
 
+### 48. Vite needed no `optimizeDeps.include` — the UMD interop already works, in dev and in build
+
+**Assumed:** the plan flagged `activitypub-visualization`'s `main` — a webpack UMD bundle with
+`commonjs2` externals for react/react-dom — as the shape that trips Vite's esbuild pre-bundling,
+and said to expect a "does not provide an export named" error or an undefined import, fixed with
+`optimizeDeps.include: ['activitypub-visualization']` in `vite.config.mts`.
+
+**Actually:** neither path needed anything. Checked both, because the failure modes differ:
+
+- **Build** (`yarn build:production`, and `build:development` first so the test manifest was not
+  touched): rolldown's CommonJS interop turns `import { ActivityPubVisualization }` into a property
+  access on the required namespace — the emitted chunk contains
+  `jsxDEV(h.ActivityPubVisualization, { logs: e })` — and `require("react")` is mapped onto the
+  shared React module rather than inlining a second copy. The `activity_log` chunk is 352 kB, which
+  is the CodeMirror the library bundles, not React.
+- **Dev server** (`yarn dev`, then fetching
+  `/packs-dev/mastodon/features/activity_log/index.tsx` from inside the container): Vite pre-bundled
+  the package into `node_modules/.vite/deps/activitypub-visualization.js`, whose only export is
+  `export default require_activitypub_visualization()` — and rewrote the importer's named import to
+  `__vite__cjsImport3_activitypubVisualization["ActivityPubVisualization"]`, which is the interop
+  that works. That dep file imports `./react.js`, the same pre-bundled React every other module
+  gets, so there is still exactly one React instance.
+
+**Cost:** about twenty minutes of verification and no change to `vite.config.mts`. Recorded because
+the absence of the workaround is the finding: if a later session sees the symptom, it will be
+`optimizeDeps` cache staleness, not this package's shape.
+
+### 49. Sass modules made the stylesheets the interesting part, not the component
+
+**Assumed:** three small edits deferred from Cluster 9 — `academy.scss`, two `application.scss`
+imports, the `a.blog-link` rule.
+
+**Actually:** every one of them had changed underneath:
+
+- `application.scss` is **`@use`, not `@import`**, throughout. Sass modules make `@use` rules
+  position-sensitive (they must precede everything but `@forward`), which is fine at the end of a
+  file that is nothing else — but it also means `@import 'activitypub-visualization'` had to become
+  `@use`. It resolves: Vite's sass integration follows the package's `style` field, and
+  `apv-border-box` shows up in the built `themes/default-*.css`. The library ships **without**
+  Tailwind's preflight, so importing it globally cannot restyle the host page.
+- **`$highlight-text-color` does not exist any more.** Neither does `$darker-text-color`. v4.7
+  replaced the SCSS colour variables with CSS custom properties in
+  `styles/mastodon/tokens/theme/{_light,_dark}.scss`. `a.blog-link` now uses
+  `var(--color-text-brand)`, and `academy.scss`'s two hardcoded hexes (`#8c8dff` was
+  `$highlight-text-color`, `#d9e1e8` was `$darker-text-color`) became `--color-text-brand` and
+  `--color-text-secondary`. That is a behaviour change in the fork's favour: the sign-up page now
+  follows the reader's colour scheme instead of assuming the dark one.
+- **stylelint is `stylelint-config-standard-scss` with `media-feature-range-notation: modern`,** so
+  the fork's `@media screen and (max-width: 1150px)` had to be written
+  `@media screen and (width <= 1150px)`. It also rejects an empty `//` line inside a comment block
+  (`scss/comment-no-empty`).
+
+A trap while checking this: `yarn lint:css` reports ~2,500 errors on this checkout, all of them in
+`foo/default-90ec0bff.chunk.css` — one of the pre-existing untracked files at the repo root, which
+stylelint's `ignoreFiles` does not cover. It is not ours. Lint the tree with
+`npx stylelint "app/javascript/styles/**/*.scss"` to get a usable answer.
+
+### 50. `.jsx` files are not linted at all on v4.7.1
+
+**Assumed:** `yarn lint` covers everything under `app/javascript`.
+
+**Actually:** ESLint 9 flat config only lints a file if some config object's `files` glob matches
+it, and `eslint.config.mjs` never lists `**/*.jsx` — the base objects have no `files` at all, which
+in flat config means "applies to whatever else matched", not "applies to everything". Running
+eslint on `features/ui/index.jsx` — untouched upstream code — prints
+`File ignored because no matching configuration was supplied`.
+
+So the three `.jsx` files this cluster edits (`features/ui/index.jsx`,
+`containers/mastodon.jsx`, `features/keyboard_shortcuts/index.jsx`) get no lint coverage, and
+`yarn typecheck` does not reach them either (`allowJs` is on, but `checkJs` is not). **Prefer
+`.ts`/`.tsx` for anything new**: the four new files here are, and `tsc` genuinely checks them —
+including the props of `<ActivityPubVisualization>`, which the library now ships types for.
+
+### 51. The fork's `toggleHidden` hijack survives intact; `react-hotkeys` did not
+
+**Assumed:** the clipboard shortcut needs rewriting against `mastodon/components/hotkeys`.
+
+**Actually:** it needs rewriting _and_ registering. The new module is not a generic key-binding
+library: `hotkeyMatcherMap` in `components/hotkeys/index.tsx` is a closed, `as const` map of every
+hotkey the app knows, and `HandlerMap` is `Partial<Record<keyof typeof hotkeyMatcherMap, …>>`. A
+handler whose name is not in that map is a type error, not a no-op. So `goToActivityLog:
+sequence('g', 'a')` had to be added to upstream's own map — the first fork edit to that file, and
+the place the other three academy features will have to go in 2b.
+
+`toggleHidden` itself was already there (`just('x')`), and the top-level
+`<Hotkeys global handlers={…}>` in `features/ui/index.jsx` does not handle it, so the column can
+still claim it. `useHotkeys(handlers)` returns a ref that scopes the listener to whatever element
+it is attached to — closer to what the fork wanted than the old `<HotKeys>` wrapper div, and it
+keeps the `height: 100%` layout the visualization needs.
+
+**One real bug fixed in passing.** The fork closed the `EventSource` inside
+`if (this.disconnect) { … }`, so an unmount that had already cleared `disconnect` leaked the SSE
+connection. It is now its own branch, and it dispatches `resetActivityLog()` — the store is the
+only buffer the log has, and the banner promises it is cleared on navigation away.
+
+### 52. Dark mode is `useTheme()`, and the detection inverted
+
+**Assumed:** re-derive `document.body.classList.contains('theme-mastodon-light')` against 4.7's
+theme tokens.
+
+**Actually:** there is a hook for it. `mastodon/hooks/useTheme.ts` returns `'dark' | 'light'`,
+reading `document.documentElement.dataset.colorScheme` through `utils/theme.ts` and re-reading it
+under a `MutationObserver` on `data-color-scheme` — so the visualization now follows a theme switch
+made without a reload, which the fork's one-shot read at render time did not.
+
+Note the polarity flip. The fork asked "is the _light_ class absent?", which defaults to dark for
+any unknown state. `isDarkMode()` asks "is the scheme _dark_?", which defaults to light. That is
+upstream's answer for every other component, so it is the one used here.
+
+### 53. Landing on `/activity_log` means deleting upstream's onboarding redirect, not just adding a route
+
+**Assumed:** the fork's `<Redirect from='/' to='/activity_log' exact />` drops in beside the route.
+
+**Actually:** v4.7 computes a `rootRedirect` string first, and its signed-in branch has three arms
+— `/start` when `forceOnboarding`, `/home` on single column, `/deck/getting-started` otherwise.
+Replacing the whole branch with `/activity_log` leaves `forceOnboarding` with no consumer, and it
+is the _only_ consumer: `firstLaunch && newAccount` is computed in `mapStateToProps` purely to feed
+it. Left in place it is an unused-variable lint error in a file eslint does not lint, so it would
+have sat there silently.
+
+It is removed: `forceOnboarding`, `firstLaunch`, `newAccount`, their propTypes, and the now-unused
+`INTRODUCTION_VERSION` import. This is the same intent as the fork's own hunk, which deleted the
+`componentDidMount` block that did `history.replace('/start')` — v4.7 just moved that decision into
+`rootRedirect`. `/start` is still routed and still reachable by hand; only the automatic redirect
+is gone, which is right for accounts that exist for a day to watch federation traffic.
+
+### 54. The pre-commit hook's `yarn tsc` runs on the host, against a root-owned build cache
+
+**Assumed:** the FORK PATCH in `lint-staged.config.js` had already resolved the root/uid-1000 split
+by routing the Ruby linters into the devcontainer and leaving everything else on the host.
+
+**Actually:** it had, for every cluster so far — because no cluster had staged a `.ts` or `.tsx`
+file. This one does, which fires `'**/*.ts?(x)': () => 'yarn tsc -p tsconfig.json --noEmit'`, and
+that task failed:
+
+```
+error TS5033: Could not write file '.../tmp/cache/tsconfig.tsbuildinfo': permission denied
+```
+
+`tsconfig.json` sets `tsBuildInfoFile: tmp/cache/tsconfig.tsbuildinfo`, and the verification run of
+`yarn typecheck` **inside the container** had created it as root. lint-staged reverts the whole
+commit when a task fails, so this blocks every commit that stages TypeScript — and it would have
+blocked 2b and 2c too.
+
+Fixed by handing the cache back once, not by changing the hook:
+
+```sh
+docker compose -f .devcontainer/compose.yaml exec app \
+  chown -R 1000:1000 /workspaces/mastodon/tmp/cache
+```
+
+tsc truncates that file in place rather than recreating it, so the ownership survives later
+container runs. Routing `yarn tsc` into the container instead would have worked, but the neighbour
+task `yarn i18n:extract` writes `app/javascript/mastodon/locales/en.json` — a _tracked_ file — and
+root-owning that is exactly the failure mode the FORK PATCH comment warns about.
+
+**Cost:** one failed commit. Recorded in `TESTING.md` next to the `safe.directory` note, which is
+the same hazard wearing a different hat.
+
 ## Phase 1 complete
 
 **The backend port is done.** Every one of the fork's ten feature clusters that has a server-side
@@ -1397,3 +1624,58 @@ it, and several clusters have config-only parts whose loss is invisible at boot 
 subscriber hook, `sidekiq.yml`'s schedule entry, `database.yml`'s pool, `nginx.conf`'s unbuffered
 SSE locations (Risk 2). Re-run the raw-hijack probe table in Surprise 38 against the real server at
 the same time.
+
+## Phase 2 status
+
+Three sessions, scouted in the plan. **2a is done.**
+
+| Session | Scope                                                                                                                     | State                       |
+| ------- | ------------------------------------------------------------------------------------------------------------------------- | --------------------------- |
+| 2a      | `activitypub-visualization` 2.0.0, the three deferred stylesheets, the Activity Log and the plumbing every feature reuses | **done** — this commit pair |
+| 2b      | ActivityPub Explorer, Activity Workshop, WebFinger Forge                                                                  | not started                 |
+| 2c      | `actor_type` in the React profile editor (`features/account_edit/index.tsx`, next to the bot toggle)                      | not started                 |
+
+**What 2a landed**
+
+- `package.json` / `yarn.lock`: `activitypub-visualization@2.0.0`, pinned exactly. The fork's
+  `1.5.1` is React 16 and does not run here at all. No Vite configuration change was needed
+  (Surprise 48).
+- Stylesheets deferred from Cluster 9: `styles/mastodon/academy.scss` (new), the two
+  `styles/application.scss` imports, and the `a.blog-link` rule at the end of
+  `styles/mastodon/components.scss`. All three needed rework for Sass modules and theme tokens
+  (Surprise 49). The academy sign-up page is styled again.
+- The Activity Log: `features/activity_log/index.tsx`, `actions/activity_log.ts`,
+  `reducers/activity_log.ts`, `models/activity_log.ts`, registration in `reducers/index.ts`,
+  `features/ui/util/async-components.js`, the `/activity_log` route and signed-in root redirect in
+  `features/ui/index.jsx`, the nav entry in `features/navigation_panel/index.tsx`, the `g`+`a`
+  hotkey in `components/hotkeys/index.tsx` and its row in `features/keyboard_shortcuts/index.jsx`,
+  the SSE connection in `containers/mastodon.jsx`, and five message ids in `locales/en.json`.
+
+**What 2a verified, and what it could not**
+
+Verified:
+
+- Suite **7773 / 0 / 2** before and after — unchanged, as expected for a frontend-only cluster.
+  Re-established from scratch at the start of the session rather than trusted from this file.
+- `yarn build:production` succeeds in the devcontainer, and `yarn build:development` before it (so
+  the test manifest was never mid-write while the suite ran).
+- `yarn typecheck` clean. This is worth more than it used to be: 2.0.0 ships
+  `dist/src/index.d.ts`, so `<ActivityPubVisualization logs={…}>` is type-checked against the same
+  `ILogEvent` the reducer stores.
+- `npx stylelint "app/javascript/styles/**/*.scss"` clean; the built `themes/default-*.css`
+  contains `.academy-signup-container`, `a.blog-link` and the library's `apv-border-box`, so all
+  three stylesheet edits actually reach the page.
+- The Vite dev server pre-bundles the package and resolves the named import (Surprise 48).
+
+**Not** verified — nothing here is exercised by RSpec, and no browser was driven:
+
+- That the SSE stream reaches the reducer and the column renders entries. The pipeline has Ruby
+  coverage up to `ActivityLogger#log` (`spec/lib/activity_log_pipeline_spec.rb`); everything from
+  `new EventSource(...)` onwards is untested.
+- The `toggleHidden` (`x`) clipboard copy, the `g`+`a` navigation, and the dark-mode class.
+- That the log renders correctly at all — `<ActivityPubVisualization>` has never been mounted
+  inside this Mastodon.
+- The academy sign-up page's appearance. The CSS is present in the bundle; nobody has looked at it.
+
+All of that belongs to the end-to-end smoke test in the plan's Verification section, which has to
+happen before the Phase 3 cutover anyway. Steps 2, 3 and 4 of that list are exactly this cluster.

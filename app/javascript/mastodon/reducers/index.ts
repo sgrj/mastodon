@@ -6,6 +6,7 @@ import { combineReducers } from 'redux-immutable';
 import { accountsReducer } from './accounts';
 import { accountsFamiliarFollowersReducer } from './accounts_familiar_followers';
 import { accountsMapReducer } from './accounts_map';
+import { activityLogReducer } from './activity_log';
 import { alertsReducer } from './alerts';
 import announcements from './announcements';
 import { composeReducer } from './compose';
@@ -43,6 +44,7 @@ import user_lists from './user_lists';
 
 const reducers = {
   announcements,
+  activity_log: activityLogReducer,
   dropdownMenu: dropdownMenuReducer,
   timelines,
   meta,

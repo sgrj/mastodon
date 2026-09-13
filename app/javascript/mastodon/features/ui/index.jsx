@@ -14,7 +14,6 @@ import { scrollRight } from '../../scroll';
 import { focusApp, unfocusApp, changeLayout } from 'mastodon/actions/app';
 import { synchronouslySubmitMarkers, submitMarkers, fetchMarkers } from 'mastodon/actions/markers';
 import { fetchNotifications } from 'mastodon/actions/notification_groups';
-import { INTRODUCTION_VERSION } from 'mastodon/actions/onboarding';
 import { AlertsController } from 'mastodon/components/alerts_controller';
 import { injectIntl } from '@/mastodon/components/intl';
 import { Hotkeys } from 'mastodon/components/hotkeys';
@@ -84,6 +83,7 @@ import {
   AccountEdit,
   AccountEditFeaturedTags,
   Quotes,
+  ActivityLog,
 } from './util/async-components';
 import { ColumnsContextProvider } from './util/columns_context';
 import { focusColumn, getFocusedItemIndex, focusItemSibling, focusFirstItem, getFocusedColumnIndex } from './util/focusUtils';
@@ -108,8 +108,6 @@ const mapStateToProps = state => ({
     && state.getIn(['compose', 'media_attachments']).size < state.getIn(['server', 'server', 'item', 'configuration', 'statuses', 'max_media_attachments']),
   isUploadEnabled:
     state.getIn(['compose', 'isDragDisabled']) !== true,
-  firstLaunch: state.getIn(['settings', 'introductionVersion'], 0) < INTRODUCTION_VERSION,
-  newAccount: !state.getIn(['accounts', me, 'note']) && !state.getIn(['accounts', me, 'bot']) && state.getIn(['accounts', me, 'following_count'], 0) === 0 && state.getIn(['accounts', me, 'statuses_count'], 0) === 0,
   username: state.getIn(['accounts', me, 'username']),
 });
 
@@ -120,7 +118,6 @@ class SwitchingColumnsArea extends PureComponent {
     location: PropTypes.object,
     singleColumn: PropTypes.bool,
     layout: PropTypes.string.isRequired,
-    forceOnboarding: PropTypes.bool,
     minimalShell: PropTypes.bool,
   };
 
@@ -159,19 +156,16 @@ class SwitchingColumnsArea extends PureComponent {
   };
 
   render () {
-    const { children, singleColumn, forceOnboarding, minimalShell } = this.props;
+    const { children, singleColumn, minimalShell } = this.props;
     const { signedIn } = this.props.identity;
     const pathName = this.props.location.pathname;
 
     let rootRedirect;
     if (signedIn) {
-      if (forceOnboarding) {
-        rootRedirect = '/start';
-      } else if (singleColumn) {
-        rootRedirect = '/home';
-      } else {
-        rootRedirect = '/deck/getting-started';
-      }
+      // The academy's landing column is the Activity Log, not the home timeline
+      // or the onboarding flow: an account exists only to watch federation
+      // traffic, and is deleted a day later.
+      rootRedirect = '/activity_log';
     } else if (singleUserMode && owner && initialState?.accounts[owner]) {
       rootRedirect = `/@${initialState.accounts[owner].username}`;
     } else if (trendsEnabled && landingPage === 'trends') {
@@ -262,6 +256,8 @@ class SwitchingColumnsArea extends PureComponent {
             <WrappedRoute path='/mutes' component={Mutes} content={children} />
             <WrappedRoute path='/lists' component={Lists} content={children} />
 
+            <WrappedRoute path='/activity_log' component={ActivityLog} content={children} />
+
             <Route path='/overview' component={CustomHomepage} />
             <Route component={BundleColumnError} />
           </WrappedSwitch>
@@ -282,8 +278,6 @@ class UI extends PureComponent {
     canUploadMore: PropTypes.bool,
     intl: PropTypes.object.isRequired,
     layout: PropTypes.string.isRequired,
-    firstLaunch: PropTypes.bool,
-    newAccount: PropTypes.bool,
     username: PropTypes.string,
     ...WithRouterPropTypes,
   };
@@ -602,9 +596,13 @@ class UI extends PureComponent {
     this.props.history.push('/follow_requests');
   };
 
+  handleHotkeyGoToActivityLog = () => {
+    this.props.history.push('/activity_log');
+  };
+
   render () {
     const { draggingOver } = this.state;
-    const { children, isComposing, location, layout, firstLaunch, newAccount } = this.props;
+    const { children, isComposing, location, layout } = this.props;
 
     const handlers = {
       help: this.handleHotkeyToggleHelp,
@@ -631,6 +629,7 @@ class UI extends PureComponent {
       goToBlocked: this.handleHotkeyGoToBlocked,
       goToMuted: this.handleHotkeyGoToMuted,
       goToRequests: this.handleHotkeyGoToRequests,
+      goToActivityLog: this.handleHotkeyGoToActivityLog,
       cheat: this.handleDonate,
     };
 
@@ -651,7 +650,6 @@ class UI extends PureComponent {
             location={location}
             singleColumn={layout === 'mobile' || layout === 'single-column'}
             layout={layout}
-            forceOnboarding={firstLaunch && newAccount}
             minimalShell={minimalShell}
           >
             {children}

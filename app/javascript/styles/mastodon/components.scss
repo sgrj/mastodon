@@ -11093,3 +11093,16 @@ noscript {
     gap: 4px;
   }
 }
+
+// Links out to the blog post the Activity Log points students at. v4.1's
+// $highlight-text-color is gone; --color-text-brand is its token equivalent.
+a.blog-link {
+  color: var(--color-text-brand);
+  text-decoration: none;
+
+  &:hover,
+  &:focus,
+  &:active {
+    text-decoration: underline;
+  }
+}

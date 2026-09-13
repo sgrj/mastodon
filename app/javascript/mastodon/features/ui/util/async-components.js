@@ -42,6 +42,10 @@ export function Lists () {
   return import('../../lists');
 }
 
+export function ActivityLog () {
+  return import('../../activity_log');
+}
+
 export function Collections() {
   return import('../../collections').then(
     module => ({default: module.Collections})

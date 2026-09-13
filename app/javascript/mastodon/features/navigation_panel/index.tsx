@@ -17,6 +17,7 @@ import BookmarksActiveIcon from '@/material-icons/400-24px/bookmarks-fill.svg?re
 import BookmarksIcon from '@/material-icons/400-24px/bookmarks.svg?react';
 import CollectionsActiveIcon from '@/material-icons/400-24px/category-fill.svg?react';
 import CollectionsIcon from '@/material-icons/400-24px/category.svg?react';
+import CommentIcon from '@/material-icons/400-24px/comment.svg?react';
 import HomeActiveIcon from '@/material-icons/400-24px/home-fill.svg?react';
 import HomeIcon from '@/material-icons/400-24px/home.svg?react';
 import InfoIcon from '@/material-icons/400-24px/info.svg?react';
@@ -113,6 +114,7 @@ const messages = defineMessages({
   },
   logout: { id: 'navigation_bar.logout', defaultMessage: 'Logout' },
   compose: { id: 'tabs_bar.publish', defaultMessage: 'New Post' },
+  activityLog: { id: 'column.activity_log', defaultMessage: 'Activity Log' },
 });
 
 const NotificationsLink = () => {
@@ -340,6 +342,15 @@ export const NavigationPanel: React.FC<{ multiColumn?: boolean }> = ({
 
             <FollowedTagsPanel />
 
+            <li>
+              <ColumnLink
+                transparent
+                to='/activity_log'
+                icon='comments'
+                iconComponent={CommentIcon}
+                text={intl.formatMessage(messages.activityLog)}
+              />
+            </li>
             <li>
               <ColumnLink
                 transparent
