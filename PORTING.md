@@ -36,7 +36,7 @@ One cluster per session, one commit per cluster. Update this file before stoppin
 - [x] 9 — Branding & OG (`instance_presenter_spec.rb` needed nothing; see Surprise 44)
 - [ ] Phase 2 — Frontend
   - [x] 2a — `activitypub-visualization` 2.0.0, stylesheets, Activity Log
-  - [ ] 2b — ActivityPub Explorer, Activity Workshop, WebFinger Forge
+  - [x] 2b — ActivityPub Explorer, Activity Workshop, WebFinger Forge
   - [ ] 2c — `actor_type` in the React profile editor
 - [ ] Phase 3 — DB rehearsal + production cutover
 
@@ -348,6 +348,55 @@ skip_pipeline: true)` in `app/helpers/home_helper.rb` and
   ids: `column.activity_log`, `dismissable_banner.activity_log_information`,
   `dismissable_banner.activity_log_clear`, `empty_column.activity_log`, plus
   `keyboard_shortcuts.activity_log`.
+
+### Phase 2b — Explorer, Workshop, WebFinger Forge
+
+- **The Activity Log's link-outs are wired, and that is the point of this cluster.**
+  `clickableLinks`/`onLinkClick`, `showExplorerLink`/`onExplorerLinkClick` and
+  `showWorkshopLink`/`onWorkshopLinkClick` now all dispatch into the target column's slice and
+  then `history.push` its route. They have to work that way round: both columns are code-split,
+  so there is nothing to call into until the route mounts them. The store is the hand-off.
+
+- **`useAppHistory()` replaces the fork's `this.context.router`.** react-router 5's legacy context
+  API is gone from v4.7's components; `mastodon/components/router` exports `useAppHistory`, which
+  is what every other navigation in this codebase uses and what carries the `LocationState` the
+  column-focus machinery reads.
+
+- **The Explorer's two seeds clear each other.** `setExplorerUrl` blanks `data`, `setExplorerData`
+  blanks `url`, and unmounting dispatches `resetExplorer`. The library takes `initialUrl` and
+  `initialActivityJson` in a single mount-time effect and owns its fetch history afterwards, so
+  leaving both set would seed the history with one activity and immediately fetch a different URL
+  on top of it. The two link-outs are mutually exclusive intents; the store now says so.
+
+- **The Workshop and the Forge go through `mastodon/api`; the Explorer cannot.** See Surprise 58.
+  `apiRequestPost`/`apiRequestGet` are axios, which attaches the bearer token and the CSRF header
+  and — the part that matters — **rejects on a non-2xx**, which is the contract the library's
+  `onSubmit`/`loadData` expect. The Explorer's `fetchMethod` has to hand back the raw `Response`,
+  so it is a bare `fetch` with the token attached by hand.
+
+- **Hotkeys: `g`+`i` (Explorer), `g`+`w` (Workshop), `g`+`c` (Forge).** The fork wanted `g e`,
+  `g w`, `g o`. `g e` is upstream's `goToExplore` and `g o` collides with `open` (Surprise 56);
+  `g w` survives untouched. Registered in `hotkeyMatcherMap`, which is closed and `as const`, and
+  listed in `features/keyboard_shortcuts`.
+
+- **Icons are material symbols from the set this repo actually ships.** The fork's FontAwesome
+  names (`wpexplorer`, `wrench`, `hand-pointer-o`) are kept as the legacy `icon` string, because
+  `ColumnHeader`/`ColumnLink` still take both; `iconComponent` is `find_in_page` (Explorer),
+  `manufacturing` (Workshop) and `contact_mail` (Forge). `alternate_email` would have been the
+  better mnemonic for WebFinger but the navigation panel already uses it for private mentions,
+  one list item away.
+
+- **`components/blog_link.tsx` is shared by all four columns.** The fork wrote the anchor out by
+  hand four times over two URLs. One component with an `href`, two exported constants
+  (`ACADEMY_POST_URL`, `NEW_FEATURES_POST_URL`), and `a.blog-link` keeps styling it.
+
+- **The Explorer's banner id is `activitypub_explorer`, not `activity_log`.** A fork bug, fixed:
+  the id is the dismissal key (`useDismissible` → `dismissed_banners`), so dismissing either
+  banner dismissed both. The default message's "AcivityPub" typo went with it.
+
+- **The Workshop's draft lives in the store, not in component state**, so switching columns and
+  coming back does not lose a half-written activity — and so the Activity Log can fill both
+  editors in before it pushes the route. Nothing resets it; that is deliberate.
 
 ## Surprises
 
@@ -1561,6 +1610,100 @@ root-owning that is exactly the failure mode the FORK PATCH comment warns about.
 **Cost:** one failed commit. Recorded in `TESTING.md` next to the `safe.directory` note, which is
 the same hazard wearing a different hat.
 
+### 55. The repository's formatter is `oxfmt`, not Prettier
+
+**Assumed:** `npx prettier --write` is how you normalise a new frontend file in a Mastodon
+checkout. It has been, for every version this fork has ever run on.
+
+**Actually:** v4.7.1 has no `prettier` dependency at all. `package.json`'s `format` script is
+`oxfmt`, and `lint-staged.config.js`'s very first rule is `'*': 'oxfmt --no-error-on-unmatched-pattern'`.
+Running prettier (npx happily downloads 3.9.6 for you) reformatted about 550 lines of _untouched
+upstream code_ across `components/hotkeys/index.tsx`, `features/navigation_panel/index.tsx` and
+`reducers/index.ts` — a diff that would have gone straight into the commit, since the pre-commit
+hook's formatter would then have found nothing to change.
+
+The two disagree on enough (import grouping, argument wrapping, trailing-comma placement in type
+arguments) to be obvious once you look at `git diff --stat`, and invisible if you do not.
+
+**Cost:** caught by a `git diff --stat` before anything was staged. Recovery was one command —
+`npx oxfmt <the same file list>` puts every byte back, because the tree is already oxfmt-formatted,
+so re-running the real formatter is idempotent on the parts prettier had mangled.
+
+**Use `npx oxfmt <files>` and `npx oxfmt --check app/javascript/mastodon/`.**
+
+### 56. `g e` was not the only hotkey letter the fork has lost
+
+**Assumed:** 2a's note said `g e` is now upstream's `goToExplore`, so the Explorer needs a new
+letter and the other two (`g w`, `g o`) port as written.
+
+**Actually:** `g o` is also gone, in a way that does not show up as a compile error. Conflict
+resolution in `components/hotkeys` is _per `useHotkeys` instance_: each instance keeps its own
+`bufferedKeys` and picks the single highest-priority match among **its own** handlers. `open` is
+`any('enter', 'o')` and is handled by each status's own instance, not by the global map in
+`features/ui/index.jsx` — so `g`, `o` with a status focused matches `goToWebFingerForge` on the
+global instance _and_ `open` on the status's, and both fire. `g x` has the same problem against
+`toggleHidden` — which this fork cares about specially, since the Activity Log hijacks it.
+
+Free letters, meaning bound neither as a single key nor as an existing `g` sequence tail: `c`,
+`i`, `v`, `w`, `y`, `z`. Chosen: **`g i`** for the Explorer (it inspects a URL), **`g w`** for the
+Workshop (the fork's own), **`g c`** for the Forge — every letter in "WebFinger Forge" was already
+taken.
+
+**Cost:** ten minutes reading the matcher. Recorded because the failure mode is two columns
+navigating at once, not an error.
+
+### 57. The library's types catch a fork bug that reported every failure as a success
+
+**Assumed:** 2.0.0 shipping `dist/src/index.d.ts` means `tsc` will flag prop _names_ the fork got
+wrong.
+
+**Actually:** it flagged a prop's _contract_. `ActivityWorkshop`'s `onSubmit` is
+`() => Promise<void>`, and the library awaits it inside a `try` whose `catch` shows the student
+"Failed to send. Please try again." The fork returned the bare `fetch(...)` promise — which
+resolves on a 500, a 422, anything short of a network error. So a rejected delivery showed
+"Activity added to outbound queue", every time. `apiRequestPost` is axios and rejects on a non-2xx,
+which is the contract as written.
+
+Two smaller ones from the same source: `initialActivityJson` is `object`, not a string and not
+`null` (the fork initialised the reducer with `null` and typed nothing), and
+`ActivityWorkshop`'s reducer in the fork initialised `{ data, url }` while the component read
+`activity` and `inbox_url` — so the initial state was two keys nobody read and two the component
+got `undefined` for.
+
+### 58. The Explorer cannot go through `mastodon/api`, and that is structural
+
+`ActivityPubExplorer`'s `fetchMethod` is `(url: string) => Promise<Response>`. The library reads
+`response.status`, `response.statusText` and calls `.json()` itself, inside its own try/catch, and
+renders the status line whatever comes back. That is the whole feature: a 404, an HTML page, a
+`.well-known` JRD are what the Explorer exists to _show_. `mastodon/api` is axios — it has already
+unwrapped the response, and it throws on the statuses the column most wants to display.
+
+So the Explorer uses a bare `fetch`, and is the one place in this cluster where the
+`Authorization: Bearer` header is attached by hand (`getAccessToken()` from `initial_state`). The
+same reasoning as Surprise 35's server-side twin, one layer up: the generic helper throws away
+exactly the cases the feature exists for.
+
+### 59. Two fork bugs in the Explorer's banner, one of them cross-column
+
+`<DismissableBanner id='activity_log'>` in `features/activitypub_explorer` — a copy-paste from the
+Activity Log. The id is the dismissal key: `useDismissible(id)` reads and writes
+`settings.dismissed_banners[id]` and the `bannerSettings` localStorage mirror, both of which are
+server-persisted per account. Dismissing the Explorer's banner therefore dismissed the Activity
+Log's, and vice versa — so a student who closed one explanation lost the other, permanently.
+Now `activitypub_explorer`. The default message also said "AcivityPub".
+
+### 60. Cluster 2b in numbers
+
+|                            |                                                                                                                                                                                                                       |
+| -------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Fork lines being replayed  | 326, in 7 files (3 components, 2 action files, 2 reducers)                                                                                                                                                            |
+| Landed                     | 628 lines across 17 files — 453 new, +175/−17 in the rest                                                                                                                                                             |
+| New files                  | 8: 3 components, 2 actions, 2 reducers, `components/blog_link.tsx`                                                                                                                                                    |
+| Files edited               | 9 — 7 upstream (`ui/index.jsx`, `async-components.js`, `navigation_panel`, `hotkeys`, `keyboard_shortcuts`, `reducers/index.ts`, `locales/en.json`) and 2 of 2a's (`features/activity_log`, `models/activity_log.ts`) |
+| Fork bugs fixed in passing | 3 — the `onSubmit` that swallowed every failure, the shared banner id, the Workshop reducer's unread keys                                                                                                             |
+| Message ids extracted      | 9                                                                                                                                                                                                                     |
+| Suite movement             | none — 7773 / 0 / 2 before and after                                                                                                                                                                                  |
+
 ## Phase 1 complete
 
 **The backend port is done.** Every one of the fork's ten feature clusters that has a server-side
@@ -1627,13 +1770,17 @@ the same time.
 
 ## Phase 2 status
 
-Three sessions, scouted in the plan. **2a is done.**
+Three sessions, scouted in the plan. **2a and 2b are done.**
 
-| Session | Scope                                                                                                                     | State                       |
-| ------- | ------------------------------------------------------------------------------------------------------------------------- | --------------------------- |
-| 2a      | `activitypub-visualization` 2.0.0, the three deferred stylesheets, the Activity Log and the plumbing every feature reuses | **done** — this commit pair |
-| 2b      | ActivityPub Explorer, Activity Workshop, WebFinger Forge                                                                  | not started                 |
-| 2c      | `actor_type` in the React profile editor (`features/account_edit/index.tsx`, next to the bot toggle)                      | not started                 |
+| Session | Scope                                                                                                                     | State       |
+| ------- | ------------------------------------------------------------------------------------------------------------------------- | ----------- |
+| 2a      | `activitypub-visualization` 2.0.0, the three deferred stylesheets, the Activity Log and the plumbing every feature reuses | **done**    |
+| 2b      | ActivityPub Explorer, Activity Workshop, WebFinger Forge, and the Activity Log's link-outs                                | **done**    |
+| 2c      | `actor_type` in the React profile editor (`features/account_edit/index.tsx`, next to the bot toggle)                      | not started |
+
+**After 2b the fork's frontend is feature-complete except for 2c.** Every one of the four
+`activitypub-visualization` components is mounted, routed, navigable and reachable by keyboard,
+and the Activity Log links into two of the other three.
 
 **What 2a landed**
 
@@ -1679,3 +1826,49 @@ Verified:
 
 All of that belongs to the end-to-end smoke test in the plan's Verification section, which has to
 happen before the Phase 3 cutover anyway. Steps 2, 3 and 4 of that list are exactly this cluster.
+
+**What 2b landed**
+
+- Three feature columns, all `.tsx`: `features/activitypub_explorer/`,
+  `features/activity_workshop/`, `features/web_finger_forge/`.
+- Their store slices: `actions/activitypub_explorer.ts`, `actions/activity_workshop.ts`,
+  `reducers/activitypub_explorer.ts`, `reducers/activity_workshop.ts`, registered in
+  `reducers/index.ts` next to `activity_log`.
+- `components/blog_link.tsx`, shared by all four academy columns, and a second re-export
+  (`IActivity` as `ActivityLogActivity`) in `models/activity_log.ts`.
+- **The Activity Log's link-outs**, which 2a left unwired on purpose: `onLinkClick`,
+  `onExplorerLinkClick` and `onWorkshopLinkClick` each seed the target slice and push the route.
+- Plumbing, matching 2a exactly: three entries in `features/ui/util/async-components.js`, three
+  `<WrappedRoute>`s and three hotkey handlers in `features/ui/index.jsx`, three `<ColumnLink>`s in
+  `features/navigation_panel/index.tsx`, three `hotkeyMatcherMap` entries, three rows in
+  `features/keyboard_shortcuts/index.jsx`, and nine message ids in `locales/en.json`.
+
+**What 2b verified, and what it could not**
+
+Verified:
+
+- Suite **7773 / 0 / 2** before and after, re-established from scratch at the start of the session.
+- `yarn build:development` and `yarn build:production` both succeed, and all four academy chunks
+  are emitted (`activity_log`, `activitypub_explorer`, `activity_workshop`, `web_finger_forge`).
+  Each of the three new chunks contains the property access rolldown's CommonJS interop produces
+  for its library component (`.ActivityPubExplorer`, `.ActivityWorkshop`, `.WebFingerForge`) and
+  the API path it calls — so the imports resolve and the endpoints are the ported ones.
+- `yarn typecheck` clean. It is doing real work here: it is what caught Surprise 57.
+- `eslint` clean on all thirteen touched `.ts`/`.tsx` files, `oxfmt --check` clean across
+  `app/javascript/mastodon/`, and `yarn i18n:extract` produces no diff beyond the nine new ids.
+
+**Not** verified — no browser was driven, and RSpec does not reach any of this:
+
+- That any of the three columns renders. The library components have never been mounted inside
+  this Mastodon; only that the bundle contains them.
+- Every link-out. `onLinkClick` / `onExplorerLinkClick` / `onWorkshopLinkClick` are typechecked
+  against the library's signatures and the routes they push exist, but nobody has clicked one. The
+  Activity Log needs live SSE traffic to show anything to click.
+- The three round trips: `GET /api/v1/json_ld` through the Explorer, `POST /api/v1/activity`
+  through the Workshop, `GET`/`POST /api/v1/webfinger` through the Forge. All three endpoints have
+  their own request specs from Phase 1; what is unproven is the browser half — the bearer token on
+  the Explorer's bare `fetch`, axios's CSRF header on the two POSTs, and whether the library's
+  error paths surface a rejection the way Surprise 57 assumes.
+- `g i` / `g w` / `g c`, and the nav entries.
+
+Steps 2-5 of the plan's end-to-end smoke test now cover the whole of Phase 2 bar 2c.

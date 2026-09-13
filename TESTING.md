@@ -116,10 +116,11 @@ covers `#source_url` with and without `GITHUB_REPOSITORY` (PORTING.md, Surprise 
 
 **Phase 1 is complete at this number.** See "Phase 1 complete" at the end of `PORTING.md`.
 
-Phase 2a (frontend: `activitypub-visualization` 2.0.0, the academy stylesheets, the Activity Log)
-leaves it at **7773 examples, 0 failures, 2 pending** — unchanged. Nothing under `app/javascript`
-has Ruby coverage, so a frontend cluster that moves this number has broken something. The frontend
-gates are separate and all four must pass:
+Phase 2a (`activitypub-visualization` 2.0.0, the academy stylesheets, the Activity Log) and 2b
+(the Explorer, the Workshop and the WebFinger Forge) both leave it at **7773 examples, 0 failures,
+2 pending** — unchanged. Nothing under `app/javascript` has Ruby coverage, so a frontend cluster
+that moves this number has broken something. The frontend gates are separate and all four must
+pass:
 
 ```sh
 docker compose -f .devcontainer/compose.yaml exec app bash -lc \
@@ -135,6 +136,18 @@ are all in `foo/default-90ec0bff.chunk.css`, a stray untracked file at the repo 
 Note also that **`.jsx` files are not linted** — `eslint.config.mjs` has no `files` glob that
 matches them, so ESLint 9 flat config skips them with "File ignored because no matching
 configuration was supplied" (PORTING.md, Surprise 50). Prefer `.ts`/`.tsx` for new frontend code.
+
+**The formatter is `oxfmt`, not Prettier.** v4.7.1 has no `prettier` dependency at all; `npx`
+will silently download one and reformat hundreds of lines of untouched upstream code
+(PORTING.md, Surprise 55). Format new frontend files with
+
+```sh
+docker compose -f .devcontainer/compose.yaml exec app bash -lc \
+  'npx oxfmt <files> && npx oxfmt --check app/javascript/mastodon/'
+```
+
+The pre-commit hook runs it over every staged file as its first task, so a mis-formatted file
+fails the commit rather than being fixed in place.
 
 Re-establish this whenever the base version changes. Any failure after a cluster lands is
 ours — that unambiguity is the whole point of keeping the baseline green.
