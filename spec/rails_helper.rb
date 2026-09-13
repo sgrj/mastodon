@@ -151,6 +151,11 @@ RSpec.configure do |config|
   config.after do
     Rails.cache.clear
     redis.del(redis.keys)
+
+    # ActivityPub Academy: ActivityLogger's registry of open SSE streams is
+    # process-wide, so a listener registered by one example would otherwise still be
+    # there for the next one.
+    ActivityLogger.reset
   end
 
   # Assign types based on dir name for non-inferred types

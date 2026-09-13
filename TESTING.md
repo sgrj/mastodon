@@ -73,6 +73,12 @@ After clusters 1–4: **7662 examples, 0 failures, 2 pending.** Cluster 4 adds 1
 excludes 29 upstream ones (7672 + 19 − 29), so the run total goes _down_. See Surprise 13 in
 `PORTING.md`: each new fabricator silently adds one example on top of the specs you write.
 
+After cluster 5: **7722 examples, 0 failures, 2 pending.** The Activity Log pipeline adds 60: 42 in
+six new files, plus 14 in `spec/workers/activitypub/delivery_worker_spec.rb` and 4 in
+`spec/requests/activitypub/inboxes_spec.rb`. It tags nothing new as `academy: :disabled` and adds no
+fabricator, so the arithmetic is unusually honest this time. The two pendings are upstream's
+(`spec/lib/activitypub/object_integrity_proof_spec.rb`, "waiting for ubuntu-26.04 runners").
+
 Re-establish this whenever the base version changes. Any failure after a cluster lands is
 ours — that unambiguity is the whole point of keeping the baseline green.
 
@@ -190,3 +196,27 @@ the registration files get no sibling of their own.
 3. Config-only clusters (`puma.rb`, `sidekiq.yml`, `database.yml`, `nginx.conf`) have no
    spec coverage and fail silently: the app boots and the Activity Log simply goes quiet.
    Check those by hand.
+
+## The Activity Log specs
+
+`spec/lib/activity_log_pipeline_spec.rb` is the only test that exercises the whole chain, and it
+needs a **real Redis**: it starts an `ActivityLogSubscriber` on its own thread and pushes probe
+events through `PUBLISH`/`SUBSCRIBE` until one comes out the far end. `bin/rspec-local` already
+brings up `redis-test`, so it works out of the box — but it will hang for 15 seconds and then fail
+with "the Activity Log pipeline never came up" if Redis is missing, rather than erroring cleanly.
+
+It deliberately avoids the database-backed `/followers` branch of audience resolution: the
+subscriber runs on its own thread, so it has its own connection and cannot see rows the example has
+not committed. That branch is covered in `spec/lib/activity_log_audience_helper_spec.rb`.
+
+`config/puma.rb` still has no spec coverage. To check the hook by hand:
+
+```sh
+docker compose -f .devcontainer/compose.yaml exec app bash -lc \
+  'bundle exec ruby -e "require %q(puma); require %q(puma/configuration)
+     c = Puma::Configuration.new({ config_files: [%q(config/puma.rb)] }); c.load; c.clamp
+     puts c.final_options[:before_worker_boot].size"'
+```
+
+One hook, and no Puma deprecation warning (`on_worker_boot` is only a deprecated alias in Puma 8 —
+see Surprise 26).

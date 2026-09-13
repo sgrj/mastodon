@@ -141,6 +141,10 @@ namespace :api, format: false do
       get :check_confirmation, to: 'confirmations#check'
     end
 
+    # Activity Log (academy): the SSE stream every student's browser holds open.
+    # The SPA route lives with the rest of the frontend.
+    resource :activity_log, only: [:show], controller: 'activity_log'
+
     # WebFinger Forge (academy). The SPA route lives with the rest of the frontend.
     resource :webfinger, only: [:show, :create], controller: 'webfinger'
 

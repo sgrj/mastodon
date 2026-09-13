@@ -8,7 +8,12 @@ class ActivityPub::DeliveryWorker
   STOPLIGHT_COOL_OFF_TIME = 60
   STOPLIGHT_FAILURE_THRESHOLD = 10
 
-  sidekiq_options queue: 'push', retry: 16, dead: false
+  # retry: 0 is a fork change, and a real one: an outbound delivery that fails is not
+  # retried at all. Every attempt publishes its own Activity Log entry, so upstream's
+  # 16 retries would replay the same failure into a student's log for days. The
+  # subclasses that genuinely depend on redelivery set their own value
+  # (ActivityPub::LowPriorityDeliveryWorker is retry: 8).
+  sidekiq_options queue: 'push', retry: 0, dead: false
 
   # Unfortunately, we cannot control Sidekiq's jitter, so add our own
   sidekiq_retry_in do |count|
@@ -32,9 +37,21 @@ class ActivityPub::DeliveryWorker
     @inbox_url      = inbox_url
     @host           = Addressable::URI.parse(inbox_url).normalized_site
     @performed      = false
+    @failure        = nil
 
     perform_request
+  rescue => e
+    # Record the failure for the Activity Log, then let it propagate. The ensure block
+    # below publishes the event before the exception leaves this method, so the student
+    # still sees the failure -- but Sidekiq sees it too. That matters for the
+    # subclasses: LowPriorityDeliveryWorker declares retry: 8, and
+    # MigratedFollowDeliveryWorker only unfollows the old account once the Follow has
+    # actually been delivered to the new one.
+    @failure = e.message
+    raise
   ensure
+    publish_activity_log_event(json, inbox_url)
+
     if @inbox_url.present?
       if @performed
         failure_tracker.track_success!
@@ -64,10 +81,18 @@ class ActivityPub::DeliveryWorker
         build_request(http_client).perform do |response|
           if response_successful?(response)
             @performed = true
-          elsif response_error_unsalvageable?(response) || unsalvageable_authorization_failure?(response)
-            @unsalvageable = true
           else
-            raise Mastodon::UnexpectedResponseError, response
+            # Recorded before the salvageable/unsalvageable split on purpose. An
+            # unsalvageable 401 or 410 is never retried, so this is the only chance a
+            # student gets to see why their activity did not arrive -- and showing them
+            # that is the point of the Activity Log.
+            @failure = "#{@inbox_url} responded with status #{response.status}"
+
+            if response_error_unsalvageable?(response) || unsalvageable_authorization_failure?(response)
+              @unsalvageable = true
+            else
+              raise Mastodon::UnexpectedResponseError, response
+            end
           end
         end
       end
@@ -96,5 +121,28 @@ class ActivityPub::DeliveryWorker
 
   def sign_with
     @options[:sign_with].presence && Keypair.from_worker_arg(@source_account, @options[:sign_with])
+  end
+
+  def activity_log_publisher
+    @activity_log_publisher ||= ActivityLogPublisher.new
+  end
+
+  # Reporting to the Activity Log is observability: it must never turn a delivery into
+  # a failure. It runs from an ensure block, so it also runs on the early return, when
+  # no source account has been loaded.
+  def publish_activity_log_event(json, inbox_url)
+    return if @source_account.nil?
+
+    activity_log_publisher.publish(
+      ActivityLogEvent.new(
+        'outbound',
+        ActivityPub::TagManager.instance.uri_for(@source_account),
+        inbox_url,
+        JSON.parse(json),
+        @failure
+      )
+    )
+  rescue => e
+    Rails.logger.warn { "activity log: could not publish outbound event for #{inbox_url}: #{e.class}: #{e.message}" }
   end
 end

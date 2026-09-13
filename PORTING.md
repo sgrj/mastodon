@@ -29,7 +29,7 @@ One cluster per session, one commit per cluster. Update this file before stoppin
 - [x] 2 — WebFingerOverride
 - [x] 3 — Actor type (backend half only)
 - [x] 4 — Academy signup (sets `id_scheme: :username_ap_id`)
-- [ ] 5 — Activity Log pipeline
+- [x] 5 — Activity Log pipeline
 - [ ] 6 — Activity Workshop
 - [ ] 7 — ActivityPub Explorer
 - [ ] 8 — Old account cleanup
@@ -91,6 +91,53 @@ Cookie'`, so caching it is correct. Upstream's own `redirect_unauthenticated_to_
 
 - **`activitypub-visualization` 2.0.0** (React 19, React as a webpack external) was published
   2026-09-08 and verified on the Hugo blog. Phase 2 bumps the pin from 1.5.1.
+- **`ActivityPub::DeliveryWorker` keeps the fork's `retry: 0`, and it is a federation change.**
+  Upstream retries an outbound delivery 16 times with growing jitter. Every attempt is a real HTTP
+  request and therefore its own Activity Log entry, so upstream's schedule would replay one
+  student's failed delivery into their log for days. The fork's choice is deliberate and is ported
+  verbatim — but it means a transient 500 or a network blip drops the activity permanently. The
+  subclasses that genuinely depend on redelivery still set their own value:
+  `ActivityPub::LowPriorityDeliveryWorker` is `retry: 8`, and
+  `ActivityPub::MigratedFollowDeliveryWorker` inherits `retry: 0` but only unfollows the old account
+  after `super` returns, so a dropped delivery leaves the old follow in place rather than losing it.
+
+- **An "unsalvageable" delivery failure is still a reported failure.** v4.7.1 restructured
+  `perform_request` so that a 4xx (other than 401/408/429), a 501, or a 401 from a permanently
+  unavailable account sets `@unsalvageable` and returns _without raising_ — no retry, no
+  `track_failure!`, no exception. That is exactly the case where the student would otherwise get no
+  explanation at all, so `@failure` is recorded before the salvageable/unsalvageable split, which is
+  also what the fork's own hunk did (it set `@failure` for every non-2xx response). `spec/workers/activitypub/delivery_worker_spec.rb`
+  pins it with a 410.
+
+- **The outbound sender URI comes from `ActivityPub::TagManager`, and the audience regexes stay
+  username-only.** The fork hardcoded `"https://#{web_domain}/users/#{username}"`; TagManager is the
+  only thing that knows about v4.7's `id_scheme`. `ActivityLogAudienceHelper` still matches only the
+  `/users/<name>` shape, and deliberately does **not** learn `/ap/users/<id>`: the values it returns
+  are ActivityLogger routing keys, which are usernames, so a numeric URI would need a database
+  lookup per recipient URI on the subscriber thread — for accounts that by construction have nobody
+  watching. Cluster 4 forces `id_scheme: :username_ap_id` on every academy signup, and Risk 1's
+  migration puts every pre-existing production row on the same scheme, so every account a student
+  can log in to is username-based. What genuinely does not resolve is the instance actor and
+  anything created by the admin CLI — none of which has an Activity Log open. Two examples in
+  `spec/workers/activitypub/delivery_worker_spec.rb` pin both halves of this.
+
+- **The audience regexes are anchored (`\A`) and the domain is `Regexp.escape`d.** The fork's four
+  regexes were unanchored, so a remote server could put a local actor URI _inside_ a URI of its own
+  (`https://evil.example/https://academy.example/users/alice`) and have its activity show up in that
+  student's log. Nothing in the fixtures or the fork's specs depended on a mid-string match.
+
+- **`ActivityLogger`'s registry is a class-level instance variable behind a `Mutex`** rather than the
+  fork's `@@loggers` Hash — Risk 4's "fork-local fragility" is real; see Surprise 27. The lock covers
+  the registry only: SSE writes happen outside it, because a write goes to a client socket and can
+  block.
+
+- **`ActivityLogSubscriber` wraps each message in `Rails.application.executor`.** The subscriber runs
+  on a thread the process spawned by hand, and the `/followers` branch of audience resolution issues
+  a real query; see Surprise 28.
+
+- **The `/activity_log` SPA path is Phase 2,** like `/web_finger_forge` (Cluster 2). Only the API
+  route (`config/routes/api.rb`) lands here. There is no React component to render yet.
+
 - **Mail delivery is configured by environment, not by patching `config/environments/`.**
   The fork forced `config.action_mailer.delivery_method = :file` in both
   `development.rb` and `production.rb`. Upstream v4.7.1 reads it from
@@ -604,3 +651,157 @@ sibling: `spec/requests/academy_signup_spec.rb` covers that flow end to end.
 `check_enabled_registrations` redirects before `create` is ever reached, and every example in the
 fork's `spec/requests/academy_signup_spec.rb` would have failed. Ported with
 `before { Setting.registrations_mode = 'open' }` added. Nothing else in the file needed changing.
+
+### 24. `config/initializers/stoplight.rb` needed nothing at all
+
+**Assumed** (plan, Cluster 5): the stoplight initializer has to be moved from
+`RedisConfiguration.new.connection` to `RedisConnection.new.connection`, and from
+`Stoplight::Light.default_data_store =` to Stoplight 4's `Stoplight.configure { |c| ... }`.
+
+**Actually:** v4.7.1 already ships exactly that file. Upstream made both changes for its own
+reasons, and the result is byte-for-byte the shape the plan described. The file is not touched by
+this cluster.
+
+`RedisConnection` matters elsewhere in the cluster, though — `lib/activity_log_subscriber.rb`
+opens its own dedicated connection (a blocking `SUBSCRIBE` must not come out of the shared pool),
+and `spec/lib/activity_log_publisher_spec.rb` uses it for the listening side.
+
+**Cost:** none. One fewer file than the plan expected.
+
+### 25. `Oj.dump` was never Oj-specific in this cluster — `to_json` is byte-identical
+
+**Assumed** (Surprise 9): every `Oj.` site is a substitution that has to be reasoned about
+individually, and `Oj.dump` of a plain Ruby object is a serialization format this port has to
+reproduce by hand.
+
+**Actually:** v4.1's `config/initializers/oj.rb` is one line —
+`Oj.default_options = { mode: :compat, time_format: :ruby, use_to_json: true }`. In `:compat` mode
+with `use_to_json`, `Oj.dump(obj)` calls `obj.to_json`, which for a plain object is ActiveSupport's
+`Object#as_json` → `instance_values`. So the fork's wire format was already
+"ActiveSupport's hash of instance variables", and `log_event.to_json` reproduces it exactly —
+including the `failure` key, which has no `attr_accessor` and is only ever read back through
+`as_json`. Nothing had to be invented.
+
+The eight sites this cluster owns, all converted:
+
+| File                                                | Was                               | Now                                   |
+| --------------------------------------------------- | --------------------------------- | ------------------------------------- |
+| `app/lib/activity_log_event.rb`                     | `Oj.load(s, mode: :strict)`       | `JSON.parse(s)`                       |
+| `app/lib/activity_log_publisher.rb`                 | `Oj.dump(log_event)`              | `log_event.to_json`                   |
+| `app/controllers/activitypub/inboxes_controller.rb` | `Oj.load(body, mode: :strict)`    | upstream's memoized `parsed_body`     |
+| `app/workers/activitypub/delivery_worker.rb`        | `Oj.load(json, mode: :strict)`    | `JSON.parse(json)`                    |
+| `spec/lib/activity_log_event_spec.rb`               | `Oj.dump` / `Oj.load` (×3)        | `to_json` / `JSON.parse`              |
+| `spec/lib/activity_log_publisher_spec.rb`           | `Oj.load(message, mode: :strict)` | `JSON.parse(message)`                 |
+| `spec/lib/activity_log_pipeline_spec.rb`            | `Oj.load` in `event_fixture`      | deleted — the helper was never called |
+| `spec/workers/activitypub/delivery_worker_spec.rb`  | `Oj.dump({...})`                  | `{...}.to_json`                       |
+
+`git grep -n '\bOj\.' -- app lib spec config` is now clean on this branch (two binary fixtures
+match by accident). The remaining fork sites are Cluster 6's `api/v1/activity_controller.rb` and
+Phase 2's `application_helper.rb`.
+
+**One behavioural difference, and it is the good direction.** `Oj.load(mode: :strict)` raised
+`Oj::ParseError`; `JSON.parse` raises `JSON::ParserError` in the same places. Both are
+`StandardError`, and every call site here is inside a `rescue` that already treated a parse failure
+as "log it and carry on".
+
+### 26. Puma 8 still answers to `on_worker_boot`, but only just
+
+**Assumed** (plan): confirm Puma 8 honours `on_worker_boot`, else use `after_worker_boot`.
+
+**Actually:** `puma-8.0.2/lib/puma/dsl.rb:830` is `alias_method :on_worker_boot, :before_worker_boot`,
+and `before_worker_boot` opens with `Puma.deprecate_method_change :on_worker_boot, __callee__, __method__`.
+So the fork's spelling still works and prints a deprecation on every boot. `after_worker_boot` is
+something else entirely — it is an alias of `after_worker_fork`, which runs in the **master**
+process after forking a worker, and a thread started there would be in the wrong process.
+
+The hook is therefore written as `before_worker_boot`, which is also what upstream's own Prometheus
+hooks in the same file already use. Verified by loading the real config through
+`Puma::Configuration#load` + `#clamp`: one `before_worker_boot` hook registered, no deprecation
+printed, and `ActivityLogSubscriber` resolved from the `require_relative` at the top of the file.
+
+`lib/` is on `$LOAD_PATH` (Rails::Engine adds it) but not on the autoload path — `config.autoload_lib`
+is commented out in `config/application.rb` — so both `config/puma.rb` and the pipeline spec have to
+require `activity_log_subscriber` explicitly. That is unchanged from the fork.
+
+### 27. `ActivityLogger`'s class variable is racy in two different ways
+
+**Assumed** (Risk 4): "fork-local fragility to re-check under Rails 8."
+
+**Actually:** the class variable is not the problem — a bare `Hash` reached from three kinds of
+thread is. Two concrete failures, both reachable in production:
+
+1. **A lost registration.** `@@loggers = Hash.new { |h, k| h[k] = [] }`, and `register` is
+   `@@loggers[id] << sse`. The default proc is Ruby code, so two students opening the Activity Log
+   at the same moment can each build a fresh array and the second assignment wins — the first
+   student's stream is registered against an array nobody holds any more, and their log stays empty
+   with no error anywhere.
+2. **A 500 for whoever registers during a keep-alive sweep.** `start_keep_alive_thread` walks
+   `@@loggers.each_key` every 10 seconds. Ruby raises
+   `RuntimeError: can't add a new key into hash during iteration` **in the mutating thread**, so
+   the cost lands on a request, not on the keep-alive.
+
+Fixed the way Surprise 21 fixed the name generators: a class-level instance variable guarded by a
+`Mutex`. `log` and the keep-alive take the lock only long enough to copy the listener array or the
+key list — an SSE write goes to a client socket and can block, and holding the registry lock across
+it would stall every other student's log. Two examples in `spec/lib/activity_logger_spec.rb` pin
+both failures (50 listeners registered from 10 threads; 200 registrations racing 200 keep-alive
+sweeps); both fail against the fork's implementation.
+
+Two smaller things went with it: the registry no longer creates an entry for every id merely
+_logged_ to (the fork's default proc made `log` a slow memory leak keyed by remote usernames), and
+`start_keep_alive_thread` lost its `puts "writing keep-alive"` — a line on stdout every ten seconds
+for the life of the process.
+
+`spec/rails_helper.rb` now calls `ActivityLogger.reset` after every example, next to the Redis wipe.
+The fork needed the same hook, which is what made this worth looking at.
+
+### 28. The subscriber thread leaks a database connection without the Rails executor
+
+**Assumed:** `config/database.yml`'s pool `+ 1` (Cluster 1) is the whole story for the subscriber
+thread's database use.
+
+**Actually:** the `+ 1` covers the _steady state_ but nothing returns the connection. The
+`/followers` branch of `ActivityLogAudienceHelper` issues a real query, and a connection leased
+inside a hand-rolled `Thread.new` is held by that thread until it dies — which for the subscriber is
+"until the Puma worker exits". It is also not safe to autoload from such a thread.
+
+`ActivityLogSubscriber#handle` now wraps each message in `Rails.application.executor.wrap`, which is
+the documented idiom for exactly this: it releases the connection when the unit of work ends and
+takes the load-interlock share that makes constant lookup safe. `spec/lib/activity_log_pipeline_spec.rb`
+asserts the pool's in-use count is unchanged after a followers-expansion event has gone through.
+
+The pool `+ 1` stays: `Redis#subscribe` blocks, so the thread is long-lived either way, and the
+executor releasing the connection between messages is belt and braces rather than a replacement.
+
+### 29. The fork's audience spec fabricates an account v4.7.1 will not create
+
+`app/models/account.rb:136` added `validates :followers_url, absence: true` under
+`with_options on: :create, if: :local?`. The fork's `activity_log_audience_helper_spec.rb`
+fabricates its followers-collection owner as `Fabricate(:account, username: 'bob', followers_url:
+'https://other.org/users/bob/followers')` — a **local** account with a remote followers URL, which
+now raises `ActiveRecord::RecordInvalid: Followers URL must be blank`. Three examples.
+
+Fixed by adding `domain: 'other.org'`, which is what the fixtures always meant: bob is the remote
+account whose followers collection a local student follows. No production impact — the rows in the
+real database are remote accounts already.
+
+### 30. Rails 8 rejects a malformed activity body before the inbox controller sees it
+
+**Assumed:** the fork's "does not reject a delivery whose body is not valid JSON" example ports
+directly.
+
+**Actually:** `config/initializers/mime_types.rb` registers `application/activity+json` (and
+`application/ld+json`) as synonyms of `:json`, so Rails' parameter parsing runs on every federated
+POST and raises `JSON::ParserError` **before** `ActivityPub::InboxesController` is reached. The
+delivery is rejected by the framework, not by anything in this fork, and no 202 is possible.
+
+The branch that still exists is the one upstream's own `parsed_body` rescue is there for: a body
+Rails did not parse, where `parsed_body` returns `nil`. The example now posts without a JSON content
+type and asserts both the 202 and `event.data == nil`, and `ActivityLogAudienceHelper` gained a
+guard (`return [] unless data.is_a?(Hash)`) so a nil payload resolves to an empty audience instead
+of raising in the subscriber. The fork never needed that guard, because its own `Oj.load` raised
+first and suppressed the publish entirely.
+
+Worth knowing for Cluster 6 and the Phase 3 smoke test: a student who crafts deliberately broken
+JSON in the Activity Workshop gets a 400 from the receiving instance, and **nothing appears in the
+Activity Log** — which is a different lesson from the one the fork used to teach.

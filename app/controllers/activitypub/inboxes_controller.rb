@@ -90,6 +90,33 @@ class ActivityPub::InboxesController < ActivityPub::BaseController
   end
 
   def process_payload
+    publish_activity_log_event
+
     ActivityPub::ProcessingWorker.perform_async(signed_request_actor.id, body, @account&.id, signed_request_actor.class.name)
+  end
+
+  # Reports the inbound activity to the Activity Log. This is observability on the hot
+  # federation path, so it must not be able to reject a delivery that Mastodon would
+  # otherwise have accepted.
+  #
+  # signed_request_actor is already actor_from_key_id(signature_params['keyId']) --
+  # see SignatureVerification -- so there is no need to parse the Signature header a
+  # second time to work out who sent this. Likewise the payload: `parsed_body` is
+  # memoized and two before_actions have already used it.
+  def publish_activity_log_event
+    activity_log_publisher.publish(
+      ActivityLogEvent.new(
+        'inbound',
+        signed_request_actor&.uri,
+        "https://#{Rails.configuration.x.web_domain}#{request.path}",
+        parsed_body
+      )
+    )
+  rescue => e
+    Rails.logger.warn { "activity log: could not publish inbound event for #{request.path}: #{e.class}: #{e.message}" }
+  end
+
+  def activity_log_publisher
+    @activity_log_publisher ||= ActivityLogPublisher.new
   end
 end

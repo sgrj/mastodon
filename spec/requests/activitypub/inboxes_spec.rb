@@ -198,6 +198,74 @@ RSpec.describe 'ActivityPub Inboxes' do
       end
     end
 
+    # Every inbound activity is reported to the Activity Log so the receiving student
+    # sees what arrived, before it is handed to the processing worker.
+    context 'with Activity Log reporting' do
+      let(:remote_account) { Fabricate(:account, domain: 'example.com', uri: 'https://example.com/actor', protocol: :activitypub) }
+      let(:account)        { Fabricate(:account) }
+      let(:publisher)      { instance_double(ActivityLogPublisher, publish: nil) }
+
+      # Without this the integration session posts as form data, Rack's form parser
+      # consumes the body, and the controller sees an empty payload.
+      let(:headers) { { 'CONTENT_TYPE' => 'application/json' } }
+
+      before { allow(ActivityLogPublisher).to receive(:new).and_return(publisher) }
+
+      def published_event
+        captured = nil
+        allow(publisher).to receive(:publish) { |event| captured = event }
+        yield
+        captured
+      end
+
+      it 'publishes an inbound event naming the sender and the inbox it arrived at' do
+        event = published_event do
+          post account_inbox_path(account_username: account.username), params: '{"type":"Follow"}', headers: headers, sign_with: remote_account
+        end
+
+        expect(event).to_not be_nil
+        expect(event.type).to eq 'inbound'
+        expect(event.sender).to eq 'https://example.com/actor'
+        expect(event.path).to eq "https://#{Rails.configuration.x.web_domain}/users/#{account.username}/inbox"
+        expect(event.data).to eq('type' => 'Follow')
+      end
+
+      # The reported path is built from the configured web domain rather than the
+      # request host, so that it matches the URIs ActivityLogAudienceHelper matches
+      # against.
+      it 'reports the path against the configured web domain' do
+        event = published_event { post inbox_path, params: '{"type":"Create"}', headers: headers, sign_with: remote_account }
+
+        expect(event.path).to start_with "https://#{Rails.configuration.x.web_domain}/"
+        expect(event.path).to end_with '/inbox'
+      end
+
+      # Reporting is observability on the federation hot path: if it breaks, Mastodon
+      # must still accept the delivery.
+      it 'still accepts the delivery when reporting fails' do
+        allow(publisher).to receive(:publish).and_raise(Redis::CannotConnectError)
+
+        post inbox_path, params: '{"type":"Create"}', headers: headers, sign_with: remote_account
+
+        expect(response).to have_http_status(202)
+      end
+
+      # The fork parsed the body itself and aborted the publish when that raised.
+      # Upstream's memoized `parsed_body` returns nil instead, so the event is
+      # published with a nil payload and dropped later, when no audience resolves.
+      #
+      # Deliberately posted without a JSON content type: config/initializers/mime_types.rb
+      # makes application/activity+json a synonym of :json, so on Rails 8 a malformed
+      # JSON-typed body is rejected by parameter parsing before this controller runs at
+      # all. The branch that survives is the one reached here.
+      it 'does not reject a delivery whose body could not be parsed' do
+        event = published_event { post inbox_path, params: 'not json', sign_with: remote_account }
+
+        expect(response).to have_http_status(202)
+        expect(event.data).to be_nil
+      end
+    end
+
     context 'without signature' do
       subject { post inbox_path, params: {}.to_json }
 
