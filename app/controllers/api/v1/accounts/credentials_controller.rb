@@ -32,6 +32,7 @@ class Api::V1::Accounts::CredentialsController < Api::BaseController
       :header_description,
       :locked,
       :bot,
+      :actor_type,
       :discoverable,
       :hide_collections,
       :indexable,

@@ -15,7 +15,12 @@ RSpec.describe ActivityPub::ActorSerializer do
     context 'with an application actor' do
       let(:record) { Fabricate :account, actor_type: 'Application' }
 
-      it { is_expected.to include('type' => 'Service') }
+      it 'serializes as Service', academy: :disabled,
+                                  reason: 'the fork serializes the stored actor_type verbatim instead of deriving it, so an Application account is published as Application rather than collapsed into Service (ActivityPub::ActorSerializer#type)' do
+        expect(subject).to include('type' => 'Service')
+      end
+
+      it { is_expected.to include('type' => 'Application') }
     end
 
     context 'with a service actor' do

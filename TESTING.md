@@ -139,7 +139,18 @@ upstream uses for `:js`, `:search` and `:streaming`.
 ACADEMY_SHOW_DISABLED=1 bin/rspec-local --tag academy:disabled
 ```
 
-This arrives with the academy signup cluster; see `PORTING.md` for status.
+`bin/rspec-local` forwards `ACADEMY_SHOW_DISABLED` into the container; nothing else
+does, so `docker compose exec` invocations need `-e ACADEMY_SHOW_DISABLED=1` of their own.
+
+The plan expected this to arrive with the academy signup cluster (4). It was needed one
+cluster early, in **Cluster 3**, and lives in `spec/rails_helper.rb` next to upstream's
+own exclusions.
+
+Currently tagged:
+
+| Example                                                                                                           | Reason                                                                                                                                                                                                                                                                         |
+| ----------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `spec/serializers/activitypub/actor_serializer_spec.rb` — `#type with an application actor serializes as Service` | The fork serializes the stored `actor_type` verbatim, so a non-instance account whose `actor_type` is `Application` is published as `Application`. Upstream collapses it into `Service` via `bot?`. The sibling example asserting the fork's behaviour sits directly below it. |
 
 ## After porting a cluster
 

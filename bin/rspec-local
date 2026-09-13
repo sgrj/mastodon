@@ -88,8 +88,16 @@ else
 fi
 clean=$(printf '%q ' "${CLEAN_ENV[@]}")
 
+# ACADEMY_SHOW_DISABLED lifts spec/rails_helper.rb's `academy: :disabled` exclusion, so
+# the upstream examples this fork intentionally breaks can be inspected (TESTING.md).
+# `compose exec` does not inherit the caller's environment, so forward it explicitly.
+EXTRA_ENV=()
+if [ -n "${ACADEMY_SHOW_DISABLED:-}" ]; then
+  EXTRA_ENV+=(-e "ACADEMY_SHOW_DISABLED=${ACADEMY_SHOW_DISABLED}")
+fi
+
 # Note: no `exec` here. `exec` bypasses shell functions and resolves the name in PATH,
 # where `compose` is ImageMagick's binary. This is the last command, so its exit status
 # is the script's.
-compose exec -T -e RAILS_ENV=test "$SERVICE" \
+compose exec -T -e RAILS_ENV=test "${EXTRA_ENV[@]+"${EXTRA_ENV[@]}"}" "$SERVICE" \
   bash -lc "${guard} exec ${clean} bin/rspec ${args}"

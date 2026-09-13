@@ -27,7 +27,7 @@ One cluster per session, one commit per cluster. Update this file before stoppin
 - [x] Phase 0 — dev loop green on unmodified v4.7.1 (7646 examples, 0 failures); Rack-hijack SSE verified
 - [x] 1 — Ops & config
 - [x] 2 — WebFingerOverride
-- [ ] 3 — Actor type (backend half only)
+- [x] 3 — Actor type (backend half only)
 - [ ] 4 — Academy signup ← **must set `id_scheme: :username_ap_id`**
 - [ ] 5 — Activity Log pipeline
 - [ ] 6 — Activity Workshop
@@ -54,6 +54,11 @@ One cluster per session, one commit per cluster. Update this file before stoppin
   lint-staged included, stays on the host. Running lint-staged itself in the container would let
   root write `.git` objects in a uid-1000 checkout. Do not use `--no-verify` to get around hook
   failures — fix the hook.
+- **`actor_type` and `bot` both stay permitted on `update_credentials`.** `params.permit`
+  returns keys in _filter-list_ order, not request order (verified), and `:actor_type` is
+  listed after `:bot` — so a client sending both gets the explicit `actor_type`, and
+  `Account#bot=` (which writes `Service`/`Person` into the same column) is overwritten
+  rather than overwriting. Keep that ordering if the list is ever reshuffled.
 - **`activitypub-visualization` 2.0.0** (React 19, React as a webpack external) was published
   2026-09-08 and verified on the Hugo blog. Phase 2 bumps the pin from 1.5.1.
 - **Mail delivery is configured by environment, not by patching `config/environments/`.**
@@ -394,3 +399,65 @@ matters.
 `Chewy::UndefinedUpdateStrategy` rather than a validation error — which reads as a model problem
 until you look closely. Wrap in `Chewy.strategy(:bypass) { ... }`. Specs are unaffected;
 `spec_helper.rb` already does this suite-wide.
+
+### 16. There is no `actor_type` validation to remove — the fork added the one it removed
+
+**Assumed:** fork commit `0c7327f` "remove validation for actor type" is a patch this port has
+to reproduce, and v4.7.1's inclusion validator might block the values the academy needs.
+
+**Actually:** upstream never had one. `git show v4.1.18:app/models/account.rb` has no
+`validates :actor_type` line; the fork _added_ `inclusion: { in: %w(Application Organization
+Service Group Person) }` in an earlier commit and then removed its own addition six lines later
+in history. v4.7.1 likewise validates nothing on the column — `git grep -n actor_type -- app lib`
+turns up only the `USERNAME_ONLY_RE` / `UnreservedUsernameValidator` conditionals at
+`app/models/account.rb:123`/`:129`/`:130`, the `non_automated` scope, and the reader helpers.
+
+So the column takes **any string**, including `Teapot` — covered by an example in
+`spec/requests/actor_type_spec.rb`. **No validation was widened and no decision point arose.**
+
+Knock-on effects of setting an unusual value, all checked and all intended:
+
+- `AUTOMATED_ACTOR_TYPES = %w(Application Service)`, so `bot?` — and with it `Account.non_automated`,
+  the REST `bot` attribute, and notification filtering — flips when a student picks `Service` or
+  `Application`. That is the lesson, not a regression.
+- `actor_type_application?` gates the _relaxed_ username rules (dots allowed, reserved names
+  allowed). A student setting `Application` **after** signup never re-saves `username`, so
+  `will_save_change_to_username?` is false and no validation runs — the loophole is unreachable
+  through `update_credentials`. Worth re-checking if Cluster 4 ever writes `actor_type` and
+  `username` in the same save.
+
+### 17. Only one upstream example diverges — but the tagging convention had to arrive a cluster early
+
+**Assumed:** `academy: :disabled` arrives with Cluster 4 (academy signup); Cluster 3 is
+serializer + param + specs and needs nothing from it.
+
+**Actually:** v4.7.1 added `spec/serializers/activitypub/actor_serializer_spec.rb` — it did not
+exist at v4.1.18 — with a `#type` block that pins upstream's _derivation_ directly. Four of its
+five examples survive the fork unchanged, because a stored `Service`/`Group`/`Person` round-trips
+to itself and the instance actor's stored `actor_type` is already `Application`. The fifth,
+"with an application actor", expects a plain account whose `actor_type` is `Application` to
+serialize as **`Service`** (upstream collapses it through `bot?`). The fork publishes
+`Application`. That is precisely the intentional divergence, so:
+
+- `config.filter_run_excluding(academy: :disabled) unless ENV['ACADEMY_SHOW_DISABLED']` now sits in
+  `spec/rails_helper.rb` beside upstream's `:js` / `:search` / `:streaming` exclusions.
+- That example is tagged with a `reason:`, and an untagged sibling asserting the fork's
+  `Application` sits directly below it, so the file records both behaviours.
+- `bin/rspec-local` gained a `-e ACADEMY_SHOW_DISABLED=…` forward: `docker compose exec` does not
+  inherit the caller's environment, so the command `TESTING.md` documents silently ran **zero**
+  examples and exited 0 — the fourth instance of Surprise 4. Verified afterwards that it now runs
+  the tagged example and that it genuinely fails.
+
+**Cost:** small, and Cluster 4 inherits a mechanism that is already exercised.
+
+### 18. `spec/requests/actor_type_spec.rb` needed three substitutions, not one
+
+`body_as_json` → `response.parsed_body` was the expected one (Surprise 10). Two more:
+
+- The fork's `PUT /settings/profile` block is dead — that form is gone (see Decisions). Replaced
+  with `PATCH /api/v1/accounts/update_credentials` via upstream's
+  `include_context 'with API authentication', oauth_scopes: 'write:accounts'`.
+- `account_url(account)` still resolves to `/users/:username` (the `param: :username` route at
+  `config/routes.rb:113`), so the actor document is reachable by name even under v4.7's default
+  `numeric_ap_id` scheme — `AccountsController#show`'s `format.json` serves it either way. The
+  spec uses `account_path` so it does not depend on `LOCAL_DOMAIN`.

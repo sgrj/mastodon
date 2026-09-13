@@ -57,6 +57,11 @@ RSpec.configure do |config|
   # By default, skip specs that need the streaming server
   config.filter_run_excluding :streaming
 
+  # ActivityPub Academy: upstream specs covering behaviour this fork intentionally
+  # changed are tagged `academy: :disabled` with a `reason:`. They are excluded by
+  # default so a red suite means a real regression. See TESTING.md for how to run them.
+  config.filter_run_excluding(academy: :disabled) unless ENV['ACADEMY_SHOW_DISABLED']
+
   config.fixture_paths = [
     Rails.root.join('spec', 'fixtures'),
   ]

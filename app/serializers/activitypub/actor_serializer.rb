@@ -69,16 +69,12 @@ class ActivityPub::ActorSerializer < ActivityPub::Serializer
     object.local_username_and_domain
   end
 
+  # The fork serves the stored actor_type verbatim, so that a student changing their
+  # actor type is visible to remote servers. The column is nullable, though, and an
+  # actor document with a null type is not valid ActivityPub -- fall back to what
+  # upstream would have derived.
   def type
-    if object.instance_actor?
-      'Application'
-    elsif object.bot?
-      'Service'
-    elsif object.group?
-      'Group'
-    else
-      'Person'
-    end
+    object.actor_type.presence || 'Person'
   end
 
   def following
