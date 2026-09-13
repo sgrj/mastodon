@@ -30,7 +30,7 @@ One cluster per session, one commit per cluster. Update this file before stoppin
 - [x] 3 — Actor type (backend half only)
 - [x] 4 — Academy signup (sets `id_scheme: :username_ap_id`)
 - [x] 5 — Activity Log pipeline
-- [ ] 6 — Activity Workshop
+- [x] 6 — Activity Workshop (the last `Oj.` call sites are gone)
 - [ ] 7 — ActivityPub Explorer
 - [ ] 8 — Old account cleanup
 - [ ] 9 — Branding & OG
@@ -137,6 +137,21 @@ Cookie'`, so caching it is correct. Upstream's own `redirect_unauthenticated_to_
 
 - **The `/activity_log` SPA path is Phase 2,** like `/web_finger_forge` (Cluster 2). Only the API
   route (`config/routes/api.rb`) lands here. There is no React component to render yet.
+
+- **`Api::V1::ActivityController` sets `wrap_parameters false` — a deliberate deviation from the
+  fork.** `config/initializers/wrap_parameters.rb` wraps JSON bodies under a key derived from the
+  controller name, which for this controller is `activity` — exactly the endpoint's own parameter.
+  The wrapper is inert whenever that key is present, so the SPA never sees it; but on a request that
+  omits `activity` it wraps the rest of the body instead, `params.require(:activity)` succeeds, and
+  the instance signs and delivers `{"inbox_url": "…"}` to whatever inbox was named. On an endpoint
+  whose entire job is emitting federation traffic as the student, `require` has to mean what it
+  says. Turning wrapping off changes nothing on the working path and turns that case back into the
+  400 the fork's own spec asserted. See Surprise 31.
+
+- **The Activity Workshop still validates nothing, and that is the feature.** No JSON-LD check, no
+  `type` whitelist, no inbox allowlist, no SSRF guard. `params.permit(:inbox_url, activity: {})`
+  passes the student's object through wholesale; the only transformations are Rails' own (see
+  Surprise 32). Anything added here would remove the exercise.
 
 - **Mail delivery is configured by environment, not by patching `config/environments/`.**
   The fork forced `config.action_mailer.delivery_method = :file` in both
@@ -805,3 +820,119 @@ first and suppressed the publish entirely.
 Worth knowing for Cluster 6 and the Phase 3 smoke test: a student who crafts deliberately broken
 JSON in the Activity Workshop gets a 400 from the receiving instance, and **nothing appears in the
 Activity Log** — which is a different lesson from the one the fork used to teach.
+
+### 31. `ParamsWrapper` will invent an activity for you, because the controller is called `activity`
+
+**Assumed:** the fork's `activity_controller.rb` is a 28-line pass-through, and the only thing to
+re-check about its parameters is whether Rails 8's tightened handling still honours the wildcard
+permit.
+
+**Actually:** the wildcard is fine (Surprise 32). What is not fine is the controller's _name_.
+`config/initializers/wrap_parameters.rb` is upstream's stock `wrap_parameters format: [:json]`, and
+`ActionController::ParamsWrapper` derives the wrapper key from the controller — here, `activity`.
+`_wrapper_enabled?` skips wrapping when `request.parameters.key?('activity')`, so the well-formed
+request the SPA sends is untouched and the collision is invisible. Omit the `activity` key, though,
+and Rails wraps the _remainder of the body_ under it: a JSON `POST {"inbox_url": "…"}` becomes
+`params[:activity] == { "inbox_url" => "…" }`, `params.require(:activity)` succeeds, and the
+instance signs that object as the student and delivers it. Observed as a 200 where the fork's own
+spec asserts 400.
+
+The fork never saw this: its spec posts form-encoded, and wrapping is registered for `:json` only.
+The SPA posts `Content-Type: application/json`, so the live path is the one that wraps.
+
+Fixed with `wrap_parameters false` on the controller (see Decisions). Two examples in
+`spec/requests/activity_workshop_spec.rb` pin it — a JSON body with no `activity`, and a JSON body
+with no `activity` but other keys present.
+
+**Cost:** ~20 minutes, all of it in the failing example. Worth checking on any future fork
+controller whose name matches one of its own parameters; `Api::V1::WebfingerController` (Cluster 2)
+is safe because its parameter is `value`, not `webfinger`.
+
+### 32. The wildcard permit survives Rails 8 intact — `deep_munge` is what eats a `null`
+
+**Assumed** (plan, Cluster 6): Rails 8 added `params.expect` and tightened parameter handling, so
+`params.permit(:inbox_url, activity: {})` has to be re-verified rather than trusted.
+
+**Actually:** verified against actionpack 8.1.3.1 and unchanged. `permit_any_in_parameters` /
+`permit_any_in_array` still recurse through nested objects and arrays to any depth, still keep JSON
+scalars with their types (integers, booleans, `null` as a hash _value_), and still drop everything
+outside the filter list. `params.require` is not deprecated in 8.1 — `expect` was added alongside it
+at `strong_parameters.rb:772`, and `require` is still `strong_parameters.rb:519` with no deprecator
+call. Ported verbatim.
+
+Two real edges, neither of them the permit:
+
+- **A `null` inside an array does not survive any Rails request.**
+  `ActionDispatch::Request::Utils::NoNilParamEncoder` (`perform_deep_munge`, default `true` since
+  Rails 4) compacts every array in every request's parameters. `{"to": ["https://…", null]}` arrives
+  as a one-element array. A `null` as a hash value is untouched. This is the single shape of
+  activity the Workshop cannot deliver verbatim, and it behaved the same way on v4.1.18 — it is a
+  documentation gap, not a port regression.
+- **A non-object `activity` becomes `{}`.** A bare string or array is not a match for the `{}`
+  filter, so permit drops it, `activity_params[:activity]` is `nil`, and `nil.to_h.to_json` is
+  `"{}"`. `activity: {}` or `activity: null` raise `ActionController::ParameterMissing` and
+  `Api::ErrorHandling` maps that to 400.
+
+Both are pinned in `spec/requests/activity_workshop_spec.rb`.
+
+### 33. The Activity Workshop cannot produce the 400 that Surprise 30 describes
+
+**Assumed** (Surprise 30's closing paragraph): "a student who crafts deliberately broken JSON in the
+Activity Workshop gets a 400 from the receiving instance, and nothing appears in the Activity Log."
+
+**Actually: not reachable from the Workshop.** Measured end-to-end, against a signed POST to this
+instance's own inbox:
+
+| What the student sends                                          | Inbox response                                                              | Activity Log               |
+| --------------------------------------------------------------- | --------------------------------------------------------------------------- | -------------------------- |
+| Valid JSON, nonsense ActivityPub (`{"type":"NotARealType", …}`) | **202**                                                                     | full entry, payload intact |
+| Byte-level broken JSON, `application/activity+json`             | 400 (`ActionDispatch::Http::Parameters::ParseError`, before the controller) | nothing                    |
+| Valid JSON over 1 MB                                            | **413** (`skip_large_payload`, `ActivityPub::Activity::MAX_JSON_SIZE`)      | nothing                    |
+
+The middle row is real but **the Workshop has no way to reach it**, for two independent reasons:
+
+1. The SPA's `onSubmit` does `JSON.stringify({ inbox_url, activity: JSON.parse(activity) })`, so
+   text that is not parseable JSON never leaves the browser — the editor's own `JSON.parse` throws
+   first.
+2. Even bypassing the SPA, `Api::V1::ActivityController` serialises a permitted `Parameters` object
+   with `to_json`. The body handed to `ActivityPub::DeliveryWorker` is therefore **always**
+   syntactically valid JSON, `"{}"` in the worst case.
+
+So the fork's lesson — "you get a 202 and a log entry" — is **still true for everything the Workshop
+can actually send**, and teaching material needs no change on that point. Two things are new and do
+need saying:
+
+- **1 MB is now a hard ceiling** on an inbound activity, enforced before anything is logged. A
+  student who pastes something enormous gets a silent 413 and an empty log, with no clue why. That
+  is the guard the 2026-09-01 JSON-LD DoS release added, and it is worth putting in front of
+  students rather than letting them discover it.
+- **The 400 is still worth demonstrating** — it is a genuine and newly-framework-level behaviour —
+  but it needs a tool that writes a raw request body (`curl --data-binary` with
+  `-H 'Content-Type: application/activity+json'`), not the Workshop. The receiving instance rejects
+  it in middleware, so no fork code runs and nothing is logged.
+
+Nothing was changed to restore the old behaviour; Surprise 30's fix in Cluster 5 stands.
+`retry: 0` (Cluster 5) also means a Workshop delivery that hits a transient error is dropped rather
+than retried, so a failure appears in the log exactly once.
+
+### 34. Cluster 6 in numbers
+
+`git grep -n '\bOj\.' -- app lib spec config` now returns **only comments** (plus two binary
+fixtures that match by accident). The three sites this cluster owned — `Oj.dump` in the controller,
+`Oj.load` twice in the spec — are `to_json` / `JSON.parse`, on Cluster 5's reasoning (Surprise 25):
+the fork's `mode: :compat, use_to_json: true` made `Oj.dump` _be_ `to_json`, so the wire format is
+unchanged rather than approximated. Surprise 9's repo-wide hazard is closed for `app`/`lib`/`spec`;
+the last fork site anywhere is Phase 2's `application_helper.rb`.
+
+`ActivityPub::DeliveryWorker#perform` is `(json, source_account_id, inbox_url, options = {})` —
+confirmed by reading `app/workers/activitypub/delivery_worker.rb:29`. The fourth parameter defaults,
+so the fork's three-argument `perform_async` is still correct and the worker sees
+`bypass_availability` unset. `spec/requests/activity_workshop_spec.rb` asserts the enqueued job has
+exactly three arguments, so a future signature change fails loudly here.
+
+Routes went to `config/routes/api.rb` next to Cluster 2's `resource :webfinger` (Surprise 10);
+`config/routes.rb` is untouched. The `/activity_workshop` SPA path is Phase 2, alongside
+`/web_finger_forge` and `/activity_log`.
+
+Suite: **7722 → 7734**, 12 new examples in one file, no fabricator, nothing newly tagged
+`academy: :disabled`.

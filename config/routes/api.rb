@@ -148,6 +148,10 @@ namespace :api, format: false do
     # WebFinger Forge (academy). The SPA route lives with the rest of the frontend.
     resource :webfinger, only: [:show, :create], controller: 'webfinger'
 
+    # Activity Workshop (academy): sign and deliver a hand-written activity to any
+    # inbox. The SPA route lives with the rest of the frontend.
+    resource :activity, only: [:create], controller: 'activity'
+
     resource :instance, only: [:show] do
       scope module: :instances do
         resources :peers, only: [:index]
