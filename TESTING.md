@@ -86,6 +86,15 @@ After cluster 7: **7759 examples, 0 failures, 2 pending.** The ActivityPub Explo
 `spec/controllers/api/v1/json_ld_controller_spec.rb` and 3 in
 `spec/requests/activitypub_explorer_spec.rb`. No fabricator, nothing newly tagged.
 
+The follow-up commit that caps relayed bodies at 1 MB adds 3 more, so the branch sat at **7762
+examples, 0 failures, 2 pending** before cluster 8.
+
+After cluster 8: **7773 examples, 0 failures, 2 pending.** Old account cleanup adds 11, all in
+`spec/workers/scheduler/old_account_cleanup_scheduler_spec.rb`. No fabricator, nothing newly tagged.
+Six of them run with `:inline_jobs`, so `AccountDeletionWorker` and `DeleteAccountService` actually
+execute and the accounts really are gone — which is the only way the spec can see the `unavailable?`
+guard described in Surprise 40, or the `web_finger_overrides` cascade from Cluster 2.
+
 Re-establish this whenever the base version changes. Any failure after a cluster lands is
 ours — that unambiguity is the whole point of keeping the baseline green.
 

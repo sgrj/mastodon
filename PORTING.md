@@ -32,7 +32,7 @@ One cluster per session, one commit per cluster. Update this file before stoppin
 - [x] 5 — Activity Log pipeline
 - [x] 6 — Activity Workshop (the last `Oj.` call sites are gone)
 - [x] 7 — ActivityPub Explorer (the hand-rolled signing is gone; `Request` does it)
-- [ ] 8 — Old account cleanup
+- [x] 8 — Old account cleanup (the fork's scheduler was a no-op on v4.7.1; see Surprise 40)
 - [ ] 9 — Branding & OG
 - [ ] Phase 2 — Frontend
 - [ ] Phase 3 — DB rehearsal + production cutover
@@ -211,6 +211,32 @@ Cookie'`, so caching it is correct. Upstream's own `redirect_unauthenticated_to_
   via `config.x.email.delivery_method`, so **set `SMTP_DELIVERY_METHOD=file` in the
   production environment** and carry no patch. Neither environment file is touched by
   this fork any more. Caveat in Surprise 6: this covers production only.
+
+- **The old-account cleanup marks the account deleted before enqueueing `AccountDeletionWorker`.**
+  Since v4.2 that worker starts with `return unless account.unavailable?`, so the fork's bare
+  `AccountDeletionWorker.perform_async(id, { 'reserve_username' => false })` against a live account
+  is a silent no-op — see Surprise 40. Every other caller in the codebase marks the account first,
+  and the one used here is `Account#mark_deleted!`, the same call
+  `Settings::DeletesController#destroy_account!` makes: this is a deletion on the student's behalf,
+  not a moderation action, so no `suspend!`, no strike, and no canonical e-mail block on an address
+  the instance itself invented. It also makes the job idempotent — a marked account leaves the
+  `without_suspended` scope, so a backed-up `pull` queue cannot make the next minute's run call
+  `create_deletion_request!` a second time on a `has_one`.
+
+- **The underscore heuristic is unchanged, and its `\_` escape is now pinned by a spec in both
+  directions.** `'%\_%'` with the backslash removed is `'%_%'`, and `_` is LIKE's single-character
+  wildcard — that pattern matches every username on the instance. Verified against this instance's
+  PostgreSQL 14.6 (`standard_conforming_strings` on, so a single-quoted Ruby string passes the
+  backslash through untouched), as a literal and as a bind parameter; and mutation-tested, dropping
+  the backslash fails two examples that assert `alice` survives. The heuristic itself is load-bearing
+  for the same reason the fork's commits "do not delete crepels account" and "do not delete alice
+  account" exist, and Cluster 4 still guarantees it: `username = display_name.parameterize(separator:
+'_')` over a two-word generated display name.
+
+- **Exclusions are expressed as upstream's own scopes.** `Account.local.without_instance_actor`
+  replaces the fork's `where("domain IS NULL").where("id <> -99")`, and `without_suspended` is the
+  new idempotency guard. `Account::INSTANCE_ACTOR_ID` is still `-99`, so the emitted SQL is
+  identical; only the raw `username LIKE ?` fragment survives, because there is no scope for it.
 
 ## Surprises
 
@@ -1109,3 +1135,86 @@ Surprise 38 is that check, and it should be re-run at the Phase 3 smoke test.
 Routes went to `config/routes/api.rb` next to Clusters 2, 5 and 6 (Surprise 10); `config/routes.rb`
 is untouched. The `/activitypub_explorer` SPA path is Phase 2. `dist/nginx.conf`'s unbuffered
 `location ^~ /api/v1/json_ld` block landed in Cluster 1 and needed nothing here.
+
+### 40. `AccountDeletionWorker` refuses a live account since v4.2 — the fork's scheduler deletes nothing
+
+**Assumed** (plan, Cluster 8): "scheduler + `config/sidekiq.yml` … confirm `Sidekiq::Queue.new('pull').size`
+still works on Sidekiq 8." The only risk called out was the queue API. The scheduler's own call —
+`AccountDeletionWorker.perform_async(account.id, { 'reserve_username' => false })` — was expected to
+port verbatim, and its _signature_ does: `perform(account_id, options = {})`, `options` read through
+`with_indifferent_access`, unchanged since v4.1.18.
+
+**Actually:** upstream 4658263b4a ("Fix re-activated accounts being deleted by AccountDeletionWorker",
+v4.2.0) added a body the fork has never seen:
+
+```ruby
+account = Account.find(account_id)
+return unless account.unavailable?   # was `suspended?` until 963354978a
+```
+
+`unavailable?` is `deleted? || suspended?`. A freshly generated academy account is neither, so the
+ported scheduler would have enqueued five jobs a minute that each found a healthy account and
+returned. Nothing raises, nothing logs, `Sidekiq` reports success, and the instance accumulates
+actors forever — the exact failure this cluster exists to prevent, arriving silently. Every caller
+in v4.7.1 marks the account first (`Form::AccountBatch#reject_account` and
+`ResolveAccountService#queue_deletion!` use `suspend!`, `Settings::DeletesController` uses
+`mark_deleted!`); the fork's scheduler was written before the guard existed and so does not.
+
+**Cost:** one line in the scheduler and the reasoning behind which marker to use (Decisions). Found
+by reading the worker rather than assuming it, which the cluster brief insisted on. Mutation-tested:
+removing `mark_deleted!` fails four of the eleven examples, including both `:inline_jobs` ones that
+assert the account is actually gone.
+
+### 41. `Sidekiq::Queue#size` is unchanged on Sidekiq 8 — and `Sidekiq::Testing` does not fake it
+
+**Assumed:** `Sidekiq::Queue.new('pull').size` is a version-sensitive API across 6.x → 8.
+
+**Actually:** it is untouched. In sidekiq 8.1.6 `Sidekiq::Queue#initialize(name = "default")` sets
+`@rname = "queue:#{name}"` and `#size` is `Sidekiq.redis { |con| con.llen(@rname) }`. Confirmed live
+against the running instance: `Sidekiq::Queue.new('pull').size` → `0`, Sidekiq 8.1.6 on
+`redis://redis:6379/0`.
+
+The more useful half: `sidekiq/test_api.rb` replaces the _client_ (`atomic_push`) and adds an
+in-memory `Sidekiq::Queues`, but it does not touch `Sidekiq::Queue`. So under
+`Sidekiq.testing!(:fake)` a job goes to memory while `Sidekiq::Queue.new('pull').size` still issues a
+real `LLEN queue:pull` against the test Redis — which is empty. The spec therefore exercises the real
+Sidekiq 8 API on the path that matters and stubs only the backed-up branch, where a stub is the only
+way to produce a depth above `MAX_PULL_SIZE`.
+
+**Cost:** none. The one thing the plan flagged as a risk was not one.
+
+### 42. The default account fabricator generates usernames with underscores in them
+
+`spec/fabricators/account_fabricator.rb` seeds `username` from
+`Faker::Internet.user_name(separators: %w(_))`, so a bare `Fabricate(:account)` is usually something
+like `kathe_hoeger12` — indistinguishable, to this scheduler, from an academy signup. It is harmless
+today (nothing else invokes the scheduler, and a fabricated account's `created_at` is `now`, outside
+the one-day window), but it means the cleanup spec cannot rely on the default: every account in it
+names its username explicitly, on one side of the heuristic or the other.
+
+The fork's own control, `alice`, happens to be safe for exactly this reason.
+
+### 43. Cluster 8 in numbers
+
+Suite: **7762 → 7773**, 11 new examples in one file, no fabricator, nothing newly tagged
+`academy: :disabled`.
+
+`config/sidekiq.yml` re-nested as the plan predicted: the `:schedule:` map now sits under
+`:scheduler:` (alongside `:listened_queues_only:`) and is indented two levels deeper. The entry went
+in next to `suspended_user_cleanup_scheduler`, the upstream job this one is modelled on, at the new
+level. It has no spec coverage — Risk 2's silent-config-loss category — so it was checked by eye
+against its neighbours.
+
+Three things were verified by mutation rather than assertion, because each of the fork's own bug
+commits is a case where the spec passing meant nothing:
+
+| Mutation                                           | Examples that fail                                                     |
+| -------------------------------------------------- | ---------------------------------------------------------------------- |
+| `'%\_%'` → `'%_%'` (drop the LIKE escape)          | 2 — `alice` is marked, and `alice` is deleted                          |
+| remove `account.mark_deleted!`                     | 4 — nothing is ever deleted (Surprise 40)                              |
+| `web_finger_overrides` FK → no `ON DELETE CASCADE` | 1 — `PG::ForeignKeyViolation` in `DeleteAccountService#purge_content!` |
+
+The last one is Cluster 2's cascade earning its keep: `Account` declares no association to
+`WebFingerOverride` and `DeleteAccountService` never mentions the table, so the database-level
+cascade is the _only_ thing that lets a student who used the WebFinger Forge be cleaned up a day
+later. Restored afterwards; the constraint in `db/schema.rb` is unchanged.

@@ -60,6 +60,10 @@
       interval: 1 minute
       class: Scheduler::SuspendedUserCleanupScheduler
       queue: scheduler
+    old_account_cleanup_scheduler:
+      interval: 1 minute
+      class: Scheduler::OldAccountCleanupScheduler
+      queue: scheduler
     software_update_check_scheduler:
       interval: 30 minutes
       class: Scheduler::SoftwareUpdateCheckScheduler
