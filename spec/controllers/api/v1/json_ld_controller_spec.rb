@@ -229,6 +229,39 @@ RSpec.describe Api::V1::JsonLdController do
       expect(result.body).to eq '<h1>Not Found</h1>'
     end
 
+    it 'relays a body up to the 1 MB ceiling' do
+      body = 'x' * (1.megabyte - 1)
+      capture_request(url, body: body)
+
+      result = explorer.send(:fetch, url)
+
+      expect(result.status).to eq 200
+      expect(result.body.bytesize).to eq body.bytesize
+    end
+
+    # Not truncated: half a JSON document reads as a malformed one, which is a worse
+    # lesson than an explicit refusal.
+    it 'refuses a body over the ceiling and explains why' do
+      capture_request(url, body: 'x' * (1.megabyte + 1))
+
+      result = explorer.send(:fetch, url)
+
+      expect(result.status).to eq 502
+      expect(result.body).to include 'refused to relay response'
+      expect(result.body).to include 'MAX_JSON_SIZE'
+      expect(result.body).to_not include 'xxxx'
+    end
+
+    it 'rejects an oversized body on Content-Length without reading it' do
+      stub_request(:get, url).to_return(
+        status: 200,
+        body: 'x' * 32,
+        headers: { 'Content-Type' => 'application/activity+json', 'Content-Length' => (1.megabyte + 1).to_s }
+      )
+
+      expect(explorer.send(:fetch, url).status).to eq 502
+    end
+
     it 'does not follow redirects itself, so the Explorer can bound the chain' do
       stub_request(:get, url).to_return(status: 302, headers: { 'Location' => 'https://remote.example/final' })
 

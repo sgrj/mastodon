@@ -148,6 +148,12 @@ Cookie'`, so caching it is correct. Upstream's own `redirect_unauthenticated_to_
   says. Turning wrapping off changes nothing on the working path and turns that case back into the
   400 the fork's own spec asserted. See Surprise 31.
 
+- **The Explorer caps relayed bodies at 1 MB** (`MAX_BODY_SIZE`), via Mastodon's own
+  `body_with_limit`. The number is deliberately shared with `ActivityPub::Activity::MAX_JSON_SIZE`,
+  the ceiling an inbox applies to an incoming activity, so anything the Explorer refuses to show is
+  also something the instance would have refused to federate. It refuses rather than truncates — a
+  half-read JSON document reads as a malformed one — and `Content-Length` is checked before the body
+  is pulled into the detached thread.
 - **The Activity Workshop still validates nothing, and that is the feature.** No JSON-LD check, no
   `type` whitelist, no inbox allowlist, no SSRF guard. `params.permit(:inbox_url, activity: {})`
   passes the student's object through wholesale; the only transformations are Rails' own (see

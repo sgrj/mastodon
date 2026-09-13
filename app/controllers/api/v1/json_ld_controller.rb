@@ -25,6 +25,13 @@ class Api::V1::JsonLdController < Api::BaseController
   # the status, the headers and the whole body have to be read while it is still open.
   ProxiedResponse = Struct.new(:status, :headers, :body)
 
+  # The remote body is read into memory in a detached thread, so it needs a ceiling.
+  # 1 MB is Mastodon's own: it is what `body_with_limit` defaults to, and what
+  # `ActivityPub::Activity::MAX_JSON_SIZE` allows an inbox to accept. Sharing the
+  # number keeps the Explorer honest -- anything it will not show a student is also
+  # something their instance would have refused.
+  MAX_BODY_SIZE = 1.megabyte
+
   rescue_from ArgumentError do |e|
     render json: { error: e.to_s }, status: 422
   end
@@ -115,7 +122,26 @@ class Api::V1::JsonLdController < Api::BaseController
 
   def fetch(url)
     build_request(url).perform do |response|
-      ProxiedResponse.new(response.code, response.headers, response.body.to_s)
+      ProxiedResponse.new(response.code, response.headers, response.body_with_limit(MAX_BODY_SIZE))
+    rescue Mastodon::LengthValidationError => e
+      # Deliberately not truncated. Half a JSON document teaches nothing and looks like
+      # a malformed one, so a student who fetches something enormous is told why
+      # instead. `body_with_limit` checks Content-Length before reading, so an
+      # oversized response that advertises its size honestly costs us nothing.
+      ProxiedResponse.new(
+        502,
+        { 'Content-Type' => 'text/plain; charset=utf-8' },
+        # Diagnostic output for a developer-facing tool, deliberately not localised: it
+        # names Ruby constants and is read next to the raw HTTP the Explorer exists to
+        # show. Routing debug text through I18n would only hand it to translators.
+        [
+          'explorer: refused to relay response',
+          "reason:   #{e.message}",
+          "limit:    #{MAX_BODY_SIZE} bytes, shared with ActivityPub::Activity::MAX_JSON_SIZE",
+          'note:     too large to explore here means too large to federate',
+          '',
+        ].join("\n")
+      )
     end
   end
 
