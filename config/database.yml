@@ -1,6 +1,9 @@
 default: &default
   adapter: postgresql
-  pool: <%= ENV["DB_POOL"] || (if Sidekiq.server? then Sidekiq.default_configuration[:concurrency] else ENV['MAX_THREADS'] end) || 5 %>
+  # The pool must hold at least one more connection than there are threads: each thread
+  # uses its own connection, and the ActivityLogAudienceHelper's Redis-subscriber thread
+  # needs one of its own. An explicit DB_POOL still wins verbatim.
+  pool: <%= ENV["DB_POOL"] || ((if Sidekiq.server? then Sidekiq.default_configuration[:concurrency] else ENV['MAX_THREADS'] end) || 5).to_i + 1 %>
   timeout: 5000
   connect_timeout: 15
   encoding: unicode

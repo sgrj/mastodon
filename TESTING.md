@@ -21,6 +21,17 @@ a while; afterwards it is instant.
 Requires **docker compose v2** (`sudo apt-get install docker-compose-v2`). The
 devcontainer compose files have no `version:` key, which compose v1 cannot parse.
 
+### After a devcontainer image rebuild
+
+The container runs as root against a checkout owned by uid 1000 on the host, so git
+inside it refuses the repo as "dubious ownership" and anything that shells out to git
+fails. Re-run this after every image rebuild:
+
+```sh
+docker compose -f .devcontainer/compose.yaml exec app \
+  git config --global --add safe.directory /workspaces/mastodon
+```
+
 ### Parallel runs
 
 The full suite serially is slow. Upstream's CI uses flatware, and so can we:
@@ -105,11 +116,16 @@ untouched, so there is nothing extra to re-port at the next upgrade.
 
 ## Exit codes lie
 
-Twice during the 4.7.1 port, `rspec` exited **0** having run nothing:
+Three times during the 4.7.1 port, `rspec` exited **0** having run nothing:
 
 - the `RAILS_ENV` problem above produced `0 examples, 1 error occurred outside of examples`
 - a bug in `bin/rspec-local` (`exec` bypasses shell functions and found ImageMagick's
   `compose` binary in `PATH`) meant the command never reached rspec
+- a second bug in `bin/rspec-local`: `printf '%q ' "$@"` with **no** arguments still runs
+  the format once and yields a literal `''`, which rspec takes as a path argument. The
+  bare `bin/rspec-local` — the documented "run everything" invocation — matched nothing
+  and reported `0 examples, 1 error occurred outside of examples`, exit 0. Fixed with a
+  `$#` guard; every earlier green run had passed an explicit path.
 
 Check the example count, not the status.
 

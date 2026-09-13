@@ -233,3 +233,6 @@ gem 'hcaptcha', '~> 7.1'
 gem 'mail', '~> 2.8'
 
 gem 'base58', '~> 0.2.3'
+
+# Generates the pronounceable pseudonyms the academy signup flow assigns to students
+gem 'random_name_generator'

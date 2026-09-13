@@ -76,7 +76,16 @@ fi
 '
 
 # printf %q keeps arguments containing spaces intact across the bash -lc boundary.
-args=$(printf '%q ' "$@")
+#
+# The $# guard is load-bearing: `printf '%q ' "$@"` with *no* arguments still runs the
+# format once, producing a literal '' -- which rspec takes as a path argument, matches
+# nothing, and reports "0 examples, 1 error occurred outside of examples" while exiting
+# 0. That is the no-argument invocation TESTING.md documents as "run everything".
+if [ "$#" -gt 0 ]; then
+  args=$(printf '%q ' "$@")
+else
+  args=''
+fi
 clean=$(printf '%q ' "${CLEAN_ENV[@]}")
 
 # Note: no `exec` here. `exec` bypasses shell functions and resolves the name in PATH,

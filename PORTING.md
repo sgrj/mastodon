@@ -25,7 +25,7 @@ One cluster per session, one commit per cluster. Update this file before stoppin
 ## Status
 
 - [x] Phase 0 — dev loop green on unmodified v4.7.1 (7646 examples, 0 failures); Rack-hijack SSE verified
-- [ ] 1 — Ops & config
+- [x] 1 — Ops & config
 - [ ] 2 — WebFingerOverride
 - [ ] 3 — Actor type (backend half only)
 - [ ] 4 — Academy signup ← **must set `id_scheme: :username_ap_id`**
@@ -51,6 +51,13 @@ One cluster per session, one commit per cluster. Update this file before stoppin
   existing table. 188 upstream migrations interleave around them — expected and fine.
 - **`activitypub-visualization` 2.0.0** (React 19, React as a webpack external) was published
   2026-09-08 and verified on the Hugo blog. Phase 2 bumps the pin from 1.5.1.
+- **Mail delivery is configured by environment, not by patching `config/environments/`.**
+  The fork forced `config.action_mailer.delivery_method = :file` in both
+  `development.rb` and `production.rb`. Upstream v4.7.1 reads it from
+  `config/email.yml` (`delivery_method: <%= ENV.fetch('SMTP_DELIVERY_METHOD', 'smtp') %>`)
+  via `config.x.email.delivery_method`, so **set `SMTP_DELIVERY_METHOD=file` in the
+  production environment** and carry no patch. Neither environment file is touched by
+  this fork any more. Caveat in Surprise 6: this covers production only.
 
 ## Surprises
 
@@ -126,7 +133,7 @@ combine `network_mode:` with the `networks:` the base service declares.
 `rspec` exited **0** twice while running zero examples: once from the `RAILS_ENV` problem
 (`0 examples, 1 error occurred outside of examples`), once from a bug in `bin/rspec-local` — `exec`
 bypasses shell functions and resolved `compose` to ImageMagick's binary in `PATH`. Always check the
-example count, never the status.
+example count, never the status. **A third instance turned up in Cluster 1 — see Surprise 7.**
 
 ### 5. Rack-hijack SSE survives Rack 3 / Puma 8 / Rails 8.1 — verified, not assumed
 
@@ -146,3 +153,70 @@ Rack 3 lowercases response header names; Rails handles that, and `rack.hijack` i
 lowercase. Both probes were removed after the check — nothing of them is committed.
 
 **Cost:** none. Cluster 5 and Cluster 7 can be ported as-is rather than re-architected.
+
+### 6. Cluster 1: three of the four files had moved under the fork's patch
+
+**Assumed:** the plan described Cluster 1 as small and mostly mechanical — re-derive the
+pool `+ 1`, drop two nginx blocks, add two, add one systemd line, add one gem.
+
+**Actually,** only `dist/mastodon-web.service` and the `Gemfile` were mechanical. Three
+things had moved:
+
+1. **nginx's named location is `@mastodon` now, not `@proxy`.** The fork hardcodes
+   `X-Forwarded-Proto https` there. A patch-shaped port would have failed to apply, but a
+   careless hand-port would have edited the wrong block — `/api/v1/streaming` also sets
+   `X-Forwarded-Proto $scheme` and looks superficially like the right target. It is not:
+   the fork left the streaming block alone, and this port does too. Everything the fork
+   removed (the `:80` ACME/redirect block, the whole `:443` block) is still present
+   upstream in recognisable form, but the TLS block's cipher list was rewritten, so the
+   deletion has to be matched by shape rather than by text.
+
+2. **`config/database.yml`'s pool expression is now Sidekiq-aware**, as the plan warned,
+   _and_ the file is split primary/replica per environment — but the `&default` anchor is
+   still the single place the pool is set, so one edit still covers all six blocks. Final
+   form, which preserves the fork's semantics exactly (`DB_POOL` wins verbatim; otherwise
+   threads + 1):
+
+   ```erb
+   pool: <%= ENV["DB_POOL"] || ((if Sidekiq.server? then Sidekiq.default_configuration[:concurrency] else ENV['MAX_THREADS'] end) || 5).to_i + 1 %>
+   ```
+
+   Verified by rendering the ERB: no vars → 6, `MAX_THREADS=8` → 9, `DB_POOL=12` → 12.
+
+3. **Mail:** the plan's suggestion holds for `production.rb` and only for `production.rb`.
+   See Surprise 6b below.
+
+**Cost:** small — but the `@proxy`/`@mastodon` rename is the kind of thing that ports
+silently wrong and is invisible until a deploy.
+
+### 6b. `SMTP_DELIVERY_METHOD` does not reach development
+
+**Assumed:** setting `SMTP_DELIVERY_METHOD=file` replaces _both_ fork patches to
+`config/environments/`.
+
+**Actually:** `config/email.yml` is the only consumer of that variable, and only
+`production.rb:98` reads `config.x.email.delivery_method`. `development.rb:93` still
+hardcodes `ENV['HEROKU'] || ENV['VAGRANT'] || ENV['REMOTE_DEV'] ? :letter_opener_web :
+:letter_opener` — no environment variable reaches it.
+
+The decision stands (no patch), because the gap is harmless: `letter_opener_web` is
+reachable at `/letter_opener` in the devcontainer and the fork's `:file` was only ever a
+convenience. But **do not expect `SMTP_DELIVERY_METHOD=file` to do anything in
+development.** If a future session wants file delivery there, set `REMOTE_DEV=true` for
+`letter_opener_web` or patch that one line deliberately.
+
+### 7. `bin/rspec-local` ran zero examples when invoked with no arguments
+
+**Assumed:** Phase 0's harness was finished and `bin/rspec-local` (bare) ran the suite —
+that is what `TESTING.md` documents on its first line.
+
+**Actually:** it ran nothing and exited **0**, the third instance of the failure mode
+Surprise 4 is about. `printf '%q ' "$@"` with zero arguments still runs the format once
+and produces a literal `''`; rspec takes that as a path, matches nothing, and reports
+`0 examples, 1 error occurred outside of examples`. Every green run in Phase 0 had passed
+an explicit path, so the bug was latent.
+
+Fixed in `bin/rspec-local` with a `[ "$#" -gt 0 ]` guard, and recorded in `TESTING.md`.
+Cluster 1 committed the fix because the cluster could not otherwise be verified.
+
+**Cost:** ~10 minutes, and it very nearly counted as a pass.
