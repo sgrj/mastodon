@@ -1,14 +1,18 @@
-- thumbnail     = instance_presenter.thumbnail
-- description ||= instance_presenter.description.presence || strip_tags(t('about.about_mastodon_html'))
+- thumbnail = instance_presenter.thumbnail
+-#
+  The academy replaces the instance's own title and description with fixed copy.
+  `description` is assigned rather than `||=`d, so it also overrides the local that
+  auth/registrations/{new,rules}.html.haml pass in. See PORTING.md, Cluster 9.
+- description = 'Learn ActivityPub interactively, by seeing protocol interactions visualized in real time'
 
 %meta{ name: 'description', content: description }/
 
-= opengraph 'og:site_name', t('about.hosted_on', domain: site_hostname)
+= opengraph 'og:site_name', 'ActivityPub Academy - A learning resource for ActivityPub'
 = opengraph 'og:url', url_for(only_path: false)
 = opengraph 'og:type', 'website'
-= opengraph 'og:title', instance_presenter.title
+= opengraph 'og:title', 'ActivityPub Academy'
 = opengraph 'og:description', description
-= opengraph 'og:image', full_asset_url(thumbnail&.file&.url(:'@1x') || frontend_asset_path('images/preview.png'))
-= opengraph 'og:image:width', thumbnail ? thumbnail.meta['width'] : '1200'
-= opengraph 'og:image:height', thumbnail ? thumbnail.meta['height'] : '630'
+= opengraph 'og:image', full_asset_url(thumbnail&.file&.url(:'@1x') || frontend_asset_path('images/academy-mascot.webp'))
+= opengraph 'og:image:width', thumbnail ? thumbnail.meta['width'] : '500'
+= opengraph 'og:image:height', thumbnail ? thumbnail.meta['height'] : '573'
 = opengraph 'twitter:card', 'summary_large_image'

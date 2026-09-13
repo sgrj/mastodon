@@ -33,9 +33,11 @@ One cluster per session, one commit per cluster. Update this file before stoppin
 - [x] 6 — Activity Workshop (the last `Oj.` call sites are gone)
 - [x] 7 — ActivityPub Explorer (the hand-rolled signing is gone; `Request` does it)
 - [x] 8 — Old account cleanup (the fork's scheduler was a no-op on v4.7.1; see Surprise 40)
-- [ ] 9 — Branding & OG
+- [x] 9 — Branding & OG (`instance_presenter_spec.rb` needed nothing; see Surprise 44)
 - [ ] Phase 2 — Frontend
 - [ ] Phase 3 — DB rehearsal + production cutover
+
+**Phase 1 is complete.** See "Phase 1 complete" at the end of this file.
 
 ## Decisions
 
@@ -237,6 +239,47 @@ Cookie'`, so caching it is correct. Upstream's own `redirect_unauthenticated_to_
   replaces the fork's `where("domain IS NULL").where("id <> -99")`, and `without_suspended` is the
   new idempotency guard. `Account::INSTANCE_ACTOR_ID` is still `-99`, so the emitted SQL is
   identical; only the raw `username LIKE ?` fragment survives, because there is no scope for it.
+
+- **The hardcoded Academy branding in `shared/_og.html.haml` is kept, even though v4.7.1 can do
+  most of it from the admin UI.** `InstancePresenter#title` is `Setting.site_title` and
+  `#description` is `Setting.site_short_description`, both editable at
+  `/admin/settings/branding` — so `og:title` and the `description` meta could be settings-driven
+  today, and `og:site_name` would follow from `t('about.hosted_on', domain: site_hostname)`. The
+  fork's intent is a fixed identity that an admin cannot accidentally change, and reproducing the
+  fork is this port's contract, so the strings stay in the template. **If that intent ever
+  softens, the migration is: set `site_title` to `ActivityPub Academy` and
+  `site_short_description` to the Academy sentence, then revert this file to upstream.** The one
+  part with no settings equivalent is `og:image`: the mascot is only a _fallback_, and uploading a
+  thumbnail at `/admin/settings/branding` still wins, exactly as upstream intends.
+
+- **`description` is assigned, not `||=`d — which deliberately overrides the partial's local.**
+  `auth/registrations/{new,rules}.html.haml` pass `locals: { description:
+description_for_sign_up(@invite) }`, and upstream's `||=` would honour it. The fork's `=`
+  discards it so that the sign-up page advertises the Academy rather than the instance's invite
+  copy. Same behaviour as the fork; noted because it looks like a typo and is not.
+
+- **The two identity tags stay hardcoded in `layouts/application.html.haml`.** v4.7.1 knows about
+  `fediverse:creator` in two places, and neither of them emits one for the instance's own pages:
+  `LinkDetailsExtractor#author_account` _reads_ the tag off a fetched link to credit an author,
+  and `settings/verifications/show.html.haml` hands a _user_ a copyable snippet for their own
+  website (paired with `Account#attribution_domains`). Mastodon has no instance-level setting that
+  writes either tag into its own `<head>`, so there is nothing settings-driven to switch to. They
+  are personal to `@crepels@mastodon.social` and live in a shared layout — that is the fork's
+  choice, ported verbatim.
+
+- **`public/avatars/original/missing.png` is a straight byte replacement.** Upstream's blob is
+  identical in v4.1.18 and v4.7.1 (`7813707`), the fork's replacement is the same 400×400 shape,
+  and both references are unchanged in 4.7.1 — `full_asset_url('avatars/original/missing.png',
+skip_pipeline: true)` in `app/helpers/home_helper.rb` and
+  `app/views/admin/reports/_comment.html.haml` (the file moved out of
+  `admin/reports/show.html.haml`, the string did not). It is served straight out of `public/`, so
+  Vite never sees it and Surprise 20 does not apply. 4.7 added two _path_-based frontend uses
+  (`features/onboarding/profile.tsx`'s `nullIfMissing`, and a `&[src$='missing.png']` rule in
+  `styles/mastodon/forms.scss`); both match on the filename, not the bytes.
+
+- **`README.md` says v4.7.1 and points at `PORTING.md` as well as `TESTING.md`.** The fork's text
+  is three sentences and is kept verbatim apart from the version number, which would otherwise
+  claim the fork is still based on v4.1.18.
 
 ## Surprises
 
@@ -1218,3 +1261,139 @@ The last one is Cluster 2's cascade earning its keep: `Account` declares no asso
 `WebFingerOverride` and `DeleteAccountService` never mentions the table, so the database-level
 cascade is the _only_ thing that lets a student who used the WebFinger Forge be cleaned up a day
 later. Restored afterwards; the constraint in `db/schema.rb` is unchanged.
+
+### 44. Upstream already ported the fork's `#source_url` spec — and did it better
+
+**Assumed:** `spec/presenters/instance_presenter_spec.rb` needs the fork's two `ClimateControl`
+contexts re-applied, since `GITHUB_REPOSITORY` is set by `dist/mastodon-web.service` (Cluster 1).
+
+**Actually:** v4.7.1's own spec already has both contexts, with the same names and the same
+expectations. Nothing to port; the file is untouched by this cluster.
+
+It also has a line the fork's version does not, and could not have had:
+
+```ruby
+def reload_configuration
+  Rails.configuration.x.mastodon = Rails.application.config_for(:mastodon)
+end
+```
+
+On v4.1.18 `Mastodon::Version.source_url` read `ENV['GITHUB_REPOSITORY']` at call time, so
+wrapping the example in `ClimateControl.modify` was enough. On v4.7.1 it reads
+`source_configuration[:repository]`, which comes from `Rails.configuration.x.mastodon` —
+populated **once at boot** from `config/mastodon.yml`'s
+`<%= ENV.fetch('GITHUB_REPOSITORY', 'mastodon/mastodon') %>`. `ClimateControl` alone changes
+nothing after boot. Had the fork's version been applied verbatim it would have passed by accident
+in CI (where `GITHUB_REPOSITORY` happens to be set to the repo under test) and failed anywhere
+else. Do not "restore" it.
+
+`app/presenters/instance_presenter.rb` is unmodified by the fork, which is why this is the whole
+of the cluster's spec work.
+
+### 45. Cluster 9 adds no frontend asset, so Surprise 20 does not bite
+
+The mascot `frontend_asset_path('images/academy-mascot.webp')` resolves to was already in the Vite
+manifest — Cluster 4 put it there for `auth/registrations/new.html.haml`, and `public/packs/` is
+local and persists between sessions. The only file this cluster adds under an asset root is
+`public/avatars/original/missing.png`, which is served straight out of `public/` by
+`full_asset_url(..., skip_pipeline: true)` and never enters the Vite graph.
+
+Verified by rendering the real thing rather than trusting it — a throwaway request spec against
+`GET /about`:
+
+```
+<link href="https://mastodon.social/@crepels" rel="me">
+<meta content="@crepels@mastodon.social" name="fediverse:creator">
+<meta content="Learn ActivityPub interactively, by seeing protocol interactions visualized in real time" name="description">
+<meta content="ActivityPub Academy - A learning resource for ActivityPub" property="og:site_name">
+<meta content="ActivityPub Academy" property="og:title">
+<meta content="https://cb6e6126.ngrok.io/packs/assets/academy-mascot-CCy6Cp7e.webp" property="og:image">
+<meta content="500" property="og:image:width">
+<meta content="573" property="og:image:height">
+```
+
+The digested, absolute `og:image` URL is the point: `frontend_asset_path` + `full_asset_url`
+together reproduce what the fork got from `asset_pack_path(..., protocol: :request)`. The 500×573
+fallback is not a guess either — `identify app/javascript/images/academy-mascot.webp` reports
+exactly 500×573.
+
+### 46. `haml-lint` rejects upstream's own alignment once the line below it changes
+
+`shared/_og.html.haml` line 1 is upstream's `- thumbnail     = instance_presenter.thumbnail`, whose
+padding aligns it with the `- description ||=` beneath. Replacing that second line with a plain
+`- description =` makes RuboCop's `Layout/ExtraSpacing` (which allows spacing only _for alignment_)
+flag line 1 — a line this cluster did not otherwise touch. Collapsed to a single space.
+`ConsecutiveComments` also refuses stacked `-#` lines; the multi-line `-#` + indented block form is
+what the rest of this codebase uses. Both files lint clean now. Worth knowing generally: editing
+one line of a HAML file can make an untouched neighbour fail the pre-commit hook.
+
+### 47. Cluster 9 in numbers
+
+Suite: **7773 → 7773**. No new examples, no fabricator, nothing newly tagged `academy: :disabled`
+— the only cluster in Phase 1 that changes the count by zero, because it is four edits to
+presentation and one binary swap, and the one spec file in scope needed no change at all
+(Surprise 44).
+
+## Phase 1 complete
+
+**The backend port is done.** Every one of the fork's ten feature clusters that has a server-side
+half now runs on v4.7.1, and the suite is green.
+
+**Where the numbers stand**
+
+|                                                    |                                                                                                       |
+| -------------------------------------------------- | ----------------------------------------------------------------------------------------------------- |
+| Suite on this branch                               | **7773 examples, 0 failures, 2 pending**                                                              |
+| Unmodified v4.7.1 baseline                         | 7646 examples, 0 failures, 2 pending                                                                  |
+| Net movement                                       | +127 examples, across clusters 2–8                                                                    |
+| Upstream examples the academy intentionally breaks | **33**, in 11 files, all tagged `academy: :disabled` with a `reason:`                                 |
+| Of those, visible in a default run                 | 30 — the other 3 also carry `:js` or `:streaming`, which `spec/rails_helper.rb` excludes on their own |
+
+The two pendings are upstream's, both in
+`spec/lib/activitypub/object_integrity_proof_spec.rb` ("waiting for ubuntu-26.04 runners"). Read
+the disabled ones with `ACADEMY_SHOW_DISABLED=1 bin/rspec-local --tag academy:disabled`; the
+per-file breakdown is the table in `TESTING.md`.
+
+**What Phase 1 delivered**
+
+- Ops & config (1), WebFingerOverride (2), actor type on `update_credentials` (3), academy signup
+  with `id_scheme: :username_ap_id` (4), the Activity Log pipeline (5), the Activity Workshop (6),
+  the ActivityPub Explorer (7), old-account cleanup (8), branding & OG (9).
+- Three fork-era liabilities are gone rather than ported: `Oj` (Surprise 9), the hand-rolled
+  draft-cavage signing in the Explorer (Surprise 35), and the `@@` name-generator race
+  (Surprise 21). Two fork bugs were fixed in passing: the scheduler that deleted nothing
+  (Surprise 40) and relative-redirect handling in the Explorer (Surprise 38).
+- The test loop itself is fork infrastructure now: `bin/rspec-local`, `docker-compose.test.yml`,
+  the `academy: :disabled` convention, and the devcontainer-routed pre-commit hook.
+
+**What is deliberately not done yet**
+
+- **Phase 2 — frontend.** ~562 lines across 11 files. Nothing under `app/javascript/` has been
+  ported except `images/academy-mascot.webp` (Cluster 4). Specifically deferred and waiting:
+  - the four React features (`ActivityPubVisualization`, `ActivityPubExplorer`,
+    `ActivityWorkshop`, `WebFingerForge`) and the SPA routes for them — `/activity_log` and
+    `/web_finger_forge` have API routes but no component;
+  - the `actor_type` control in the React profile editor (the Cluster 3 decision);
+  - `app/javascript/styles/mastodon/components.scss` (the `a.blog-link` rule) and
+    `app/javascript/styles/application.scss` (the `mastodon/academy` and
+    `activitypub-visualization` imports), plus `academy.scss` itself — all explicitly held back
+    from Cluster 9 because they belong with the frontend work;
+  - the bump of `activitypub-visualization` from 1.5.1 to **2.0.0** (published 2026-09-08, React 19
+    ready) — do this first and confirm a dev build resolves it before porting component code.
+
+  The plan's Phase 2 section lists the known hazards: Vite pre-bundling of a UMD-with-externals
+  package, `react-hotkeys` replaced by in-house `mastodon/components/hotkeys`,
+  `navigation_panel.js` no longer existing, `.js` → `.tsx`, and dark-mode detection now going
+  through 4.7's theme tokens.
+
+- **Phase 3 — database rehearsal and production cutover.** Direct 4.1 → 4.7 migration is viable
+  (`20240307180905_migrate_devise_two_factor_secrets.rb` is still present). Before it: generate the
+  three `ACTIVE_RECORD_ENCRYPTION_*` secrets, keep `OTP_SECRET` set _through_ the migration, and
+  rehearse on a production dump to time `20260702144128_migrate_local_account_keypairs.rb`, which
+  rewrites every local account's keypair and sizes the maintenance window.
+
+**Before the cutover, run the end-to-end federation smoke test in the plan.** Specs cannot cover
+it, and several clusters have config-only parts whose loss is invisible at boot — `puma.rb`'s
+subscriber hook, `sidekiq.yml`'s schedule entry, `database.yml`'s pool, `nginx.conf`'s unbuffered
+SSE locations (Risk 2). Re-run the raw-hijack probe table in Surprise 38 against the real server at
+the same time.

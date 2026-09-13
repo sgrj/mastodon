@@ -95,6 +95,13 @@ Six of them run with `:inline_jobs`, so `AccountDeletionWorker` and `DeleteAccou
 execute and the accounts really are gone — which is the only way the spec can see the `unavailable?`
 guard described in Surprise 40, or the `web_finger_overrides` cascade from Cluster 2.
 
+After cluster 9: **7773 examples, 0 failures, 2 pending** — unchanged. Branding & OG edits four
+presentation files and swaps one binary; it adds no examples, no fabricator, and nothing newly
+tagged. `spec/presenters/instance_presenter_spec.rb` needed no change at all: v4.7.1 already
+covers `#source_url` with and without `GITHUB_REPOSITORY` (PORTING.md, Surprise 44).
+
+**Phase 1 is complete at this number.** See "Phase 1 complete" at the end of `PORTING.md`.
+
 Re-establish this whenever the base version changes. Any failure after a cluster lands is
 ours — that unambiguity is the whole point of keeping the baseline green.
 
@@ -187,6 +194,11 @@ own exclusions.
 
 Currently tagged — **33 examples in 11 files.** Every tag carries a `reason:`; run the command
 above to read them.
+
+The command reports **30**, not 33: three of the tagged examples also carry `:js` or
+`:streaming`, and `spec/rails_helper.rb` excludes those independently of
+`ACADEMY_SHOW_DISABLED`. They are the JS-app sign-out in `spec/system/log_out_spec.rb`, the
+landing-page redirect in `spec/system/home_spec.rb`, and all of `spec/system/unlogged_spec.rb`.
 
 | File                                                     | N   | Cluster | What diverges                                                                                                                                                                             |
 | -------------------------------------------------------- | --- | ------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |

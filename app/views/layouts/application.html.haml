@@ -24,6 +24,12 @@
     = theme_color_tags color_scheme
     %meta{ name: 'mobile-web-app-capable', content: 'yes' }/
 
+    -#
+      Fork identity tags. Mastodon has no instance-level setting that emits either of
+      these; see PORTING.md, Cluster 9.
+    %link{ rel: 'me', href: 'https://mastodon.social/@crepels' }/
+    %meta{ name: 'fediverse:creator', content: '@crepels@mastodon.social' }/
+
     %title= html_title
 
     = theme_style_tags current_theme
