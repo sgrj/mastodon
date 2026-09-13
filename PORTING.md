@@ -49,6 +49,11 @@ One cluster per session, one commit per cluster. Update this file before stoppin
 - **The three WebFingerOverride migrations keep their original timestamps.** They are already applied
   in production; renumbering would make Rails re-run `create_web_finger_overrides` against an
   existing table. 188 upstream migrations interleave around them — expected and fine.
+- **The pre-commit hook routes Ruby linters into the devcontainer.** `lint-staged.config.js` is
+  patched so `bin/rubocop` and `bin/haml-lint` run via `docker compose exec`; everything else,
+  lint-staged included, stays on the host. Running lint-staged itself in the container would let
+  root write `.git` objects in a uid-1000 checkout. Do not use `--no-verify` to get around hook
+  failures — fix the hook.
 - **`activitypub-visualization` 2.0.0** (React 19, React as a webpack external) was published
   2026-09-08 and verified on the Hugo blog. Phase 2 bumps the pin from 1.5.1.
 - **Mail delivery is configured by environment, not by patching `config/environments/`.**
@@ -220,3 +225,26 @@ Fixed in `bin/rspec-local` with a `[ "$#" -gt 0 ]` guard, and recorded in `TESTI
 Cluster 1 committed the fix because the cluster could not otherwise be verified.
 
 **Cost:** ~10 minutes, and it very nearly counted as a pass.
+
+### 6. The pre-commit hook could not run at all on this host
+
+**Assumed:** nothing — the plan never considered the hook.
+
+**Actually:** `.husky/pre-commit` runs `yarn lint-staged` on the host, and
+`lint-staged.config.js` invokes `bin/rubocop` and `bin/haml-lint`, which need Ruby 4.0.6. The host
+has 3.0.6. Because lint-staged _reverts the commit_ when a task fails, this made every commit
+touching a `.rb` file impossible rather than merely skipping Ruby linting. Cluster 1 worked around
+it with `--no-verify`.
+
+**Fixed:** the two Ruby entries now delegate to the devcontainer, translating lint-staged's absolute
+host paths to `/workspaces/mastodon`. Verified both directions: `rubocop -a` really does rewrite
+staged files, and an uncorrectable offence (`Lint/Debugger`) fails the task and reverts, so the hook
+still blocks bad commits.
+
+lint-staged itself stays on the host deliberately — it runs `git stash` and rewrites the index, and
+the container is root against a uid-1000 checkout, so letting it touch `.git` would leave
+root-owned objects the host's git could not write.
+
+**Still outstanding:** the JS tasks (`yarn tsc`, `yarn i18n:extract`) also assume a working
+toolchain and have not been exercised — the host has yarn 1.22.19 against a `packageManager` pin of
+yarn 4.18.0. They only trigger on JS/TS changes, so Phase 2 will be the first to find out.
