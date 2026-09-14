@@ -1926,3 +1926,50 @@ POSTs); and how the sign-up page looks. These are steps 2–7 of the plan's smok
 and the cutover. Phase 3's prerequisites are unchanged and listed in the plan: generate the three
 `ACTIVE_RECORD_ENCRYPTION_*` secrets, keep `OTP_SECRET` set through the migration, and expect the
 keypair migration to size the maintenance window.
+
+### 62. SPA paths must be registered twice, and the suite cannot tell you
+
+**Assumed:** sessions 2a/2b registered the four academy routes in
+`features/ui/index.jsx` as `<WrappedRoute>`s, which made the nav links work. That looked complete.
+
+**Actually:** `config/routes/web_app.rb` holds the _server-side_ list of paths that serve the React
+shell, and the four academy paths were missing from it. Nav links worked (client-side routing never
+hits the server), but a direct visit or a **page reload** on `/activity_log` returned Mastodon's 404
+page. Every academy feature was one refresh away from vanishing.
+
+The fork had these paths in its `config/routes.rb` `%w()` list; v4.7 moved that list to
+`web_app.rb`. The ledger even flagged the file as "deferred to Phase 2" — and Phase 2 then missed
+it, because the client routes made everything look wired.
+
+**Found by the browser smoke test, and only by it.** 7779 passing specs could not see this: the Ruby
+suite does not exercise React, and the client-side routes were genuinely correct.
+
+**When adding an academy SPA path, register it in BOTH places.**
+
+## Browser smoke test — 2026-09-14
+
+First time any of the frontend has been driven. Against the dev server, Playwright/Chromium:
+
+- Anonymous `/` → `/auth/sign_up` (Cluster 4), rendered through `layouts/academy-signup.html.haml`.
+- `academy-signup-container` present with `display: flex` — **`academy.scss` applies** (2a).
+- One-click sign-up creates an account and logs in; lands on `/start`.
+- **All four columns render**, headers "Activity Log", "ActivityPub Explorer", "Activity Workshop",
+  "WebFinger Forge". **Zero page errors.**
+- The account created by clicking the real button: `username=dobelus_dedaost`,
+  `id_scheme=username_ap_id`, `uri=http://…/users/dobelus_dedaost`, `actor_type=Person`.
+  **Risk 1 is closed against a real signup**, not just a spec — and the generated username contains
+  the underscore Cluster 8's cleanup keys on.
+
+Two dev-environment notes, neither a port defect:
+
+- Sign-up fails in development when `web_domain` carries a port: the generated address is
+  `name@localhost:3000` and `EmailAddressValidator` rejects it via `Mail::Address`. Run the dev
+  server with `WEB_DOMAIN=academy.test` (or any portless domain) to sign up locally. Production is
+  unaffected — `activitypub.academy` is valid, and the validator does no MX lookup.
+- `registrations_mode` is `'none'` in `config/settings.yml` (Surprise 23), so the dev database needs
+  `Setting.registrations_mode = 'open'` before sign-up is reachable at all. I set it in the local
+  dev DB.
+
+**Still not exercised:** live SSE traffic reaching the Activity Log (needs real federation), the
+clipboard hotkey, the link-outs into Explorer/Workshop, and the three API round trips from the
+browser. Those need a federating peer, which is Phase 3 territory.

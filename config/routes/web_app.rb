@@ -5,6 +5,9 @@
 # - Have alternative format representations
 
 %w(
+  /activity_log
+  /activity_workshop
+  /activitypub_explorer
   /blocks
   /bookmarks
   /collections/(*any)
@@ -35,4 +38,5 @@
   /statuses/(*any)
   /overview
   /overview/about
+  /web_finger_forge
 ).each { |path| get path, to: 'home#index' }
