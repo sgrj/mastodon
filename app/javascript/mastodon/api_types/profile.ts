@@ -14,6 +14,9 @@ export interface ApiProfileJSON {
   header_description: string;
   locked: boolean;
   bot: boolean;
+  // The academy serializes this column verbatim as the ActivityPub actor `type`,
+  // so it is an arbitrary string and may be null on accounts that predate signup.
+  actor_type: string | null;
   hide_collections: boolean;
   discoverable: boolean;
   indexable: boolean;
@@ -33,6 +36,7 @@ export type ApiProfileUpdateParams = Partial<
     | 'note'
     | 'locked'
     | 'bot'
+    | 'actor_type'
     | 'hide_collections'
     | 'discoverable'
     | 'indexable'

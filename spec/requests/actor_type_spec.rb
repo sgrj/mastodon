@@ -6,7 +6,11 @@ require 'rails_helper'
 # instances react to a Person becoming a Service or a Group. Upstream *derives* the
 # ActivityPub type from flags (bot? -> Service, group? -> Group, else Person);
 # ActivityPub::ActorSerializer#type here returns the stored column instead, and
-# `actor_type` is permitted on update_credentials so the profile editor can set it.
+# `actor_type` is permitted on both write paths so the profile editor can set it:
+# PATCH /api/v1/accounts/update_credentials (the fork-era API) and PATCH /api/v1/profile
+# (the endpoint v4.7's React profile editor actually talks to, which did not exist when
+# the fork was written). REST::ProfileSerializer exposes the column so the editor's
+# <select> can show the current value.
 RSpec.describe 'Actor type' do
   def actor_type_at(path)
     get path, headers: { 'Accept' => 'application/activity+json' }
@@ -61,6 +65,59 @@ RSpec.describe 'Actor type' do
       patch '/api/v1/accounts/update_credentials', headers: headers, params: { actor_type: 'Group' }
 
       expect(actor_type_at(account_path(user.account.reload))).to eq 'Group'
+    end
+  end
+
+  # This is the endpoint app/javascript/mastodon/features/account_edit/index.tsx uses.
+  describe '/api/v1/profile' do
+    include_context 'with API authentication', oauth_scopes: 'read:accounts write:accounts'
+
+    it 'exposes the stored actor type so the editor can preselect it' do
+      user.account.update!(actor_type: 'Group')
+
+      get '/api/v1/profile', headers: headers
+
+      expect(response).to have_http_status(200)
+      expect(response.parsed_body[:actor_type]).to eq 'Group'
+    end
+
+    it 'exposes a null actor type rather than deriving one' do
+      user.account.update!(actor_type: nil)
+
+      get '/api/v1/profile', headers: headers
+
+      expect(response.parsed_body[:actor_type]).to be_nil
+    end
+
+    it 'lets a user change their own actor type' do
+      expect { patch '/api/v1/profile', headers: headers, params: { actor_type: 'Service' } }
+        .to change { user.account.reload.actor_type }.to('Service')
+
+      expect(response).to have_http_status(200)
+      expect(response.parsed_body[:actor_type]).to eq 'Service'
+    end
+
+    it 'accepts a type no ActivityPub vocabulary defines' do
+      patch '/api/v1/profile', headers: headers, params: { actor_type: 'Teapot' }
+
+      expect(user.account.reload.actor_type).to eq 'Teapot'
+    end
+
+    it 'is reflected in the actor document that remote instances fetch' do
+      patch '/api/v1/profile', headers: headers, params: { actor_type: 'Organization' }
+
+      expect(actor_type_at(account_path(user.account.reload))).to eq 'Organization'
+    end
+
+    # Account#bot= writes actor_type ('Service' or 'Person'), so the two params collide.
+    # params.permit returns keys in filter-list order and :actor_type is listed after
+    # :bot, so an explicit actor_type is applied last and wins. The React editor sends
+    # only actor_type -- its bot toggle is gone -- but the ordering is load-bearing for
+    # any other client that sends both.
+    it 'applies an explicit actor type after bot= when a client sends both' do
+      patch '/api/v1/profile', headers: headers, params: { bot: true, actor_type: 'Group' }
+
+      expect(user.account.reload.actor_type).to eq 'Group'
     end
   end
 end

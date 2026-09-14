@@ -30,6 +30,10 @@ class Api::V1::ProfilesController < Api::BaseController
       :header_description,
       :locked,
       :bot,
+      # The academy lets a student publish themselves as any ActivityPub type.
+      # Keep this *after* :bot -- params.permit preserves filter-list order, and
+      # Account#bot= writes actor_type, so an explicit actor_type must win.
+      :actor_type,
       :discoverable,
       :hide_collections,
       :indexable,

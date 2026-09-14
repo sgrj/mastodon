@@ -1,5 +1,5 @@
 import { useCallback, useEffect } from 'react';
-import type { FC } from 'react';
+import type { ChangeEvent, FC } from 'react';
 
 import { defineMessages, FormattedMessage, useIntl } from 'react-intl';
 
@@ -13,7 +13,7 @@ import { Button } from '@/mastodon/components/button';
 import { DismissibleCallout } from '@/mastodon/components/callout/dismissible';
 import { CustomEmojiProvider } from '@/mastodon/components/emoji/context';
 import { EmojiHTML } from '@/mastodon/components/emoji/html';
-import { ToggleField } from '@/mastodon/components/form_fields';
+import { SelectField } from '@/mastodon/components/form_fields';
 import { useElementHandledLink } from '@/mastodon/components/status/handled_link';
 import { useAccount } from '@/mastodon/hooks/useAccount';
 import { useCurrentAccountId } from '@/mastodon/hooks/useAccountId';
@@ -117,7 +117,28 @@ export const messages = defineMessages({
     id: 'account_edit.advanced_settings.title',
     defaultMessage: 'Advanced settings',
   },
+  actorTypeLabel: {
+    id: 'account_edit.advanced_settings.actor_type_label',
+    defaultMessage: 'Actor type',
+  },
+  actorTypeHint: {
+    id: 'account_edit.advanced_settings.actor_type_hint',
+    defaultMessage:
+      'The ActivityPub "type" your actor document is published with. Other servers use it to decide how to treat you: "Service" and "Application" mark an automated account, "Group" makes you a group. Change it and watch what they do.',
+  },
 });
+
+// The fork's own list, from the server-rendered settings form this replaces. The
+// column has no validation, so an account may hold a type that is not on the list
+// (spec/requests/actor_type_spec.rb's Teapot example) -- such a value is rendered as
+// an extra option below rather than silently shown as unselected.
+const ACTOR_TYPES = [
+  'Application',
+  'Organization',
+  'Service',
+  'Group',
+  'Person',
+];
 
 export const AccountEdit: FC = () => {
   const accountId = useCurrentAccountId();
@@ -178,9 +199,12 @@ export const AccountEdit: FC = () => {
     history.push('/profile/featured_tags');
   }, [history]);
 
-  const handleBotToggle = useCallback(() => {
-    void dispatch(patchProfile({ bot: !profile?.bot }));
-  }, [dispatch, profile?.bot]);
+  const handleActorTypeChange = useCallback(
+    (event: ChangeEvent<HTMLSelectElement>) => {
+      void dispatch(patchProfile({ actor_type: event.target.value }));
+    },
+    [dispatch],
+  );
 
   // Normally we would use the account emoji, but we want all custom emojis to be available to render after editing.
   const emojis = useCustomEmojis();
@@ -192,6 +216,11 @@ export const AccountEdit: FC = () => {
     return <AccountEditEmptyColumn notFound={!accountId} />;
   }
 
+  // Mirrors ActivityPub::ActorSerializer#type (`actor_type.presence || 'Person'`),
+  // so the control shows the type remote servers actually see rather than the raw
+  // column, which is nullable and blank on accounts that predate academy signup.
+  const storedActorType = profile.actorType?.trim() ?? '';
+  const actorType = storedActorType === '' ? 'Person' : storedActorType;
   const headerSrc = autoPlayGif ? profile.header : profile.headerStatic;
   const hasName = !!profile.displayName;
   const hasBio = !!profile.bio;
@@ -349,23 +378,23 @@ export const AccountEdit: FC = () => {
         />
 
         <AccountEditSection title={messages.advancedSettingsTitle}>
-          <ToggleField
-            checked={profile.bot}
-            onChange={handleBotToggle}
+          <SelectField
+            id='account_actor_type'
+            value={actorType}
+            onChange={handleActorTypeChange}
             disabled={isPending}
-            label={
-              <FormattedMessage
-                id='account_edit.advanced_settings.bot_label'
-                defaultMessage='Automated account'
-              />
-            }
-            hint={
-              <FormattedMessage
-                id='account_edit.advanced_settings.bot_hint'
-                defaultMessage='Signal to others that the account mainly performs automated actions and might not be monitored'
-              />
-            }
-          />
+            label={intl.formatMessage(messages.actorTypeLabel)}
+            hint={intl.formatMessage(messages.actorTypeHint)}
+          >
+            {!ACTOR_TYPES.includes(actorType) && (
+              <option value={actorType}>{actorType}</option>
+            )}
+            {ACTOR_TYPES.map((type) => (
+              <option key={type} value={type}>
+                {type}
+              </option>
+            ))}
+          </SelectField>
         </AccountEditSection>
       </CustomEmojiProvider>
     </AccountEditColumn>

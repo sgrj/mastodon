@@ -34,7 +34,7 @@ One cluster per session, one commit per cluster. Update this file before stoppin
 - [x] 7 — ActivityPub Explorer (the hand-rolled signing is gone; `Request` does it)
 - [x] 8 — Old account cleanup (the fork's scheduler was a no-op on v4.7.1; see Surprise 40)
 - [x] 9 — Branding & OG (`instance_presenter_spec.rb` needed nothing; see Surprise 44)
-- [ ] Phase 2 — Frontend
+- [x] Phase 2 — Frontend (2a deps+styles+Activity Log, 2b Explorer/Workshop/Forge, 2c actor_type UI)
   - [x] 2a — `activitypub-visualization` 2.0.0, stylesheets, Activity Log
   - [x] 2b — ActivityPub Explorer, Activity Workshop, WebFinger Forge
   - [ ] 2c — `actor_type` in the React profile editor
@@ -42,7 +42,7 @@ One cluster per session, one commit per cluster. Update this file before stoppin
 
 **Phase 1 is complete.** See "Phase 1 complete" at the end of this file.
 
-**Phase 2 is in progress.** See "Phase 2 status" below "Phase 1 complete".
+**Phase 2 is complete.** See "Phase 2 complete" at the end of this file.
 
 ## Decisions
 
@@ -1872,3 +1872,57 @@ Verified:
 - `g i` / `g w` / `g c`, and the nav entries.
 
 Steps 2-5 of the plan's end-to-end smoke test now cover the whole of Phase 2 bar 2c.
+
+### Phase 2c — the `actor_type` selector
+
+Cluster 3 landed the backend; this is the control that drives it. The fork's original lived in the
+server-rendered profile form, which upstream reduced to an 8-line stub, so it moved to
+`features/account_edit/index.tsx` beside the existing bot toggle.
+
+**Decision: the select replaces the bot toggle**, which is what the fork did. `bot?` is _derived_
+from `actor_type` (`AUTOMATED_ACTOR_TYPES = %w(Application Service)`), so showing both would let a
+student set state that contradicts itself. It reuses upstream's `SelectField`, and mirrors
+`ActivityPub::ActorSerializer#type` (`actor_type.presence || 'Person'`) so the control shows the
+type remote servers actually see rather than the raw nullable column. A stored value outside the
+list — the `Teapot` case `spec/requests/actor_type_spec.rb` pins — renders as an extra option rather
+than showing blank.
+
+### 61. The React profile editor does not go through `credentials_controller`
+
+**Assumed:** Cluster 3 permitted `:actor_type` in
+`app/controllers/api/v1/accounts/credentials_controller.rb`, and the plan recorded that as "the
+backend half", so the UI was expected to be a one-file change.
+
+**Actually:** `features/account_edit` reads and writes through a _different_ endpoint —
+`Api::V1::ProfilesController`, serialized by `REST::ProfileSerializer`. `actor_type` had to be
+permitted there **and** added to the serializer's attribute list, or the select would have had
+nothing to display and nothing to save. Three places, not one.
+
+`:actor_type` is placed after `:bot` in the profiles controller's permit list for the same reason
+Cluster 3 recorded: `params.permit` preserves filter-list order and `Account#bot=` writes
+`actor_type`, so an explicit value must be applied last to win.
+
+**Cost:** small, but it is the kind of thing that would have shipped as "the selector does nothing"
+and been blamed on the frontend.
+
+## Phase 2 complete
+
+The frontend port is done. **Suite: 7779 examples, 0 failures, 2 pending**, with 30 upstream
+examples tagged `academy: :disabled`. `yarn build:production`, `yarn typecheck`, eslint, stylelint
+and `yarn i18n:extract` are all clean.
+
+Ported: the academy stylesheets, the Activity Log (SSE + `ActivityPubVisualization`), the
+ActivityPub Explorer, the Activity Workshop, the WebFinger Forge, their routes, nav entries,
+hotkeys (`g a` / `g i` / `g w` / `g c`) and reducer registrations, the Activity Log's link-outs into
+the Explorer and Workshop, and the `actor_type` selector.
+
+**What is NOT verified: none of it has been driven in a browser.** The Ruby suite does not exercise
+React, so a green suite says nothing about whether any column renders. Unproven end to end: that the
+SSE stream reaches the reducer and the log renders; the clipboard hotkey; every link-out; the three
+API round trips from the browser (bearer token on the Explorer's raw `fetch`, CSRF on the two
+POSTs); and how the sign-up page looks. These are steps 2–7 of the plan's smoke test.
+
+**Remaining: the browser smoke test, then Phase 3** — the production database rehearsal on a dump,
+and the cutover. Phase 3's prerequisites are unchanged and listed in the plan: generate the three
+`ACTIVE_RECORD_ENCRYPTION_*` secrets, keep `OTP_SECRET` set through the migration, and expect the
+keypair migration to size the maintenance window.

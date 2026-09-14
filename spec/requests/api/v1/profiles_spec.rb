@@ -39,6 +39,10 @@ RSpec.describe 'Profile API' do
           'header_description' => '',
           'hide_collections' => anything,
           'bot' => account.bot,
+          # FORK: the academy publishes the stored actor_type verbatim and lets a
+          # student change it here, so the profile payload carries the column too.
+          # Nullable, and nil on a fabricated account. See spec/requests/actor_type_spec.rb.
+          'actor_type' => account.actor_type,
           'locked' => account.locked,
           'discoverable' => account.discoverable,
           'indexable' => account.indexable,

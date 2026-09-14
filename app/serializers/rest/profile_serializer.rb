@@ -8,7 +8,7 @@ class REST::ProfileSerializer < ActiveModel::Serializer
   attributes :id, :display_name, :note, :fields,
              :formatted_note, :formatted_fields,
              :avatar, :avatar_static, :avatar_description, :header, :header_static, :header_description,
-             :locked, :bot,
+             :locked, :bot, :actor_type,
              :hide_collections, :discoverable, :indexable,
              :show_media, :show_media_replies, :show_featured,
              :attribution_domains

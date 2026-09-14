@@ -170,6 +170,7 @@ const transformProfile = (result: ApiProfileJSON): ProfileData => ({
   headerDescription: result.header_description,
   locked: result.locked,
   bot: result.bot,
+  actorType: result.actor_type,
   hideCollections: result.hide_collections,
   discoverable: result.discoverable,
   indexable: result.indexable,
