@@ -3423,10 +3423,10 @@ compressible@~2.0.16:
   dependencies:
     mime-db ">= 1.43.0 < 2"
 
-compression-webpack-plugin@^6.1.1:
-  version "6.1.1"
-  resolved "https://registry.yarnpkg.com/compression-webpack-plugin/-/compression-webpack-plugin-6.1.1.tgz#ae8e4b2ffdb7396bb776e66918d751a20d8ccf0e"
-  integrity sha512-BEHft9M6lwOqVIQFMS/YJGmeCYXVOakC5KzQk05TFpMBlODByh1qNsZCWjUBxCQhUP9x0WfGidxTbGkjbWO/TQ==
+compression-webpack-plugin@^6.1.2:
+  version "6.1.2"
+  resolved "https://registry.yarnpkg.com/compression-webpack-plugin/-/compression-webpack-plugin-6.1.2.tgz#dc6584573b5077914011062dc2df9e73240aac88"
+  integrity sha512-z6xtgKP3Uds2lyrkx2PGwrE9FZT8raHTC3ImFrY3e0faAfSfVIV63JmR+sfk5pf4OhUj3E4XdjZBCKpjYWIw6Q==
   dependencies:
     cacache "^15.0.5"
     find-cache-dir "^3.3.1"
