@@ -139,7 +139,7 @@ group :development do
   gem 'letter_opener', '~> 1.8'
   gem 'letter_opener_web', '~> 2.0'
   gem 'memory_profiler'
-  gem 'brakeman', '~> 5.4', require: false
+  gem 'brakeman', '~> 6.0', require: false
   gem 'bundler-audit', '~> 0.9', require: false
 
   gem 'capistrano', '~> 3.17'
